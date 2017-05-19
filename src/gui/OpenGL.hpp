@@ -1,5 +1,5 @@
 #ifndef OPENGL_HPP_
-#  define OPENGL__HPP_
+#  define OPENGL_HPP_
 
 #  ifdef __APPLE__
 #    include <GLUT/glut.h>

@@ -36,7 +36,7 @@ public:
   // Constructor: load a texture from a file (tga ...)
   // TODO: tester 2 chargement textures a la suite avec/sans echec
   // *************************************************************************************************
-  virtual bool open(std::string const& filename)
+  bool open(std::string const& filename)
   {
     std::string::size_type idx = filename.rfind('.');
     if (std::string::npos != idx)

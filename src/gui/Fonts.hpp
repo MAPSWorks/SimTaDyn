@@ -44,7 +44,7 @@ public:
   // @param name if load from system then give the font name else the texture name.
   // type `xlsfonts` command in a bash to find a suitable font.
   // *************************************************************************************************
-  virtual bool open(const LoadMode mode, std::string const& name)
+  bool open(const LoadMode mode, std::string const& name)
   {
     bool res;
 

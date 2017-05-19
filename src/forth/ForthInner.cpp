@@ -634,7 +634,7 @@ void Forth::boot()
 
   // Data Stack
   m_dico.add(FORTH_PRIMITIVE_DEPTH, "DEPTH", 0);
-  m_dico.add(FORTH_PRIMITIVE_ROLL, "ROLL", 0);
+  //  m_dico.add(FORTH_PRIMITIVE_ROLL, "ROLL", 0);
   m_dico.add(FORTH_PRIMITIVE_NIP, "NIP", 0);
   m_dico.add(FORTH_PRIMITIVE_PICK, "PICK", 0);
   m_dico.add(FORTH_PRIMITIVE_DUP, "DUP", 0);
