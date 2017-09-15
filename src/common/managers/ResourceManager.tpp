@@ -23,25 +23,42 @@
 #  define RESOURCE_MANAGER_TPP_
 
 #  include "Singleton.hpp"
-#  include "IResource.tpp"
+#  include "Resource.tpp"
 #  include "Logger.hpp"
-#  include <map>
+//#  include <map>
 #  include <mutex>
 
-template<class T>
-class ResourceManager: public Singleton<ResourceManager<T>>
+// **************************************************************
+//! \brief
+// **************************************************************
+//template <class T, class ID>
+template <class T>
+struct ResourceHolder
+{
+  //  std::map<ID, Resource<T>*> m_resources;
+  std::map<std::string, Resource<T>*> m_resources;
+};
+
+// **************************************************************
+//! \brief
+// **************************************************************
+class ResourceManager
+  : public Singleton<ResourceManager>,
+    public CScatteredHierarchy<ResourceList, ResourceHolder>
 {
 private:
 
   //------------------------------------------------------------------
   //! \brief Mandatory by design.
   //------------------------------------------------------------------
-  friend class Singleton<ResourceManager<T>>;
+  friend class Singleton<ResourceManager>;
 
   //------------------------------------------------------------------
   //! \brief Allow the resource to call methods like remove()
   //------------------------------------------------------------------
-  // friend class IResource<T>;
+  // friend class Resource<T, ID>;
+
+public:
 
   //------------------------------------------------------------------
   //! \brief Private because of Singleton.
@@ -57,12 +74,12 @@ private:
     std::lock_guard<std::mutex> lock(m_mutex);
 
     LOGI("Destroying the ResourceManager");
-    if (m_resources.empty())
+    /*if (ResourceHolder<T>::m_resources.empty())
       return ;
 
-    for (auto it: m_resources)
+    for (auto it: ResourceHolder<T>::m_resources)
       {
-        IResource<T> *resource = it.second;
+        auto resource = it.second;
         uint32_t n = resource->owners();
         if (0U == n)
           {
@@ -74,42 +91,32 @@ private:
           {
             CPP_LOG(logger::Warning)
               << "  ==> The resource "
-              << resource->id()
+              << resource->object().id()
               << " is still aquired by "
               << n << " owners\n";
           }
-      }
+          }*/
+    // FIXME: mettre ca dans Resource ????
   }
 
 public:
 
   //------------------------------------------------------------------
-  //! \brief Insert an allocated resource in the list of resources.
+  //! \brief
   //------------------------------------------------------------------
-  bool add(IResource<T> *resource)
+  template <class T>
+  Resource<T> *add()
   {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    if (nullptr == resource)
+    Resource<T> *r = create<T>();
+    if (add(r))
       {
-        LOGF("Trying to add a resource with a NULL pointer");
-        return false;
+        return r;
       }
-
-    const T id = resource->id();
-    if (m_resources.find(id) != m_resources.end())
+    else
       {
-        CPP_LOG(logger::Warning)
-          << "Trying to add a duplicated resource #"
-          << id << ". This current action is ignored !\n";
-        return false;
+        delete r;
+        return nullptr;
       }
-
-    CPP_LOG(logger::Info)
-      << "Added the resource #" << id
-      << " to the ResourceManager\n";
-    m_resources[id] = resource;
-    return true;
   }
 
   //------------------------------------------------------------------
@@ -118,33 +125,42 @@ public:
   //! \return the adress of the resource if it exists, else return
   //! nullptr.
   //------------------------------------------------------------------
-  inline IResource<T> *acquire(T const& id)
+  template <class T>
+  inline T *acquire(std::string const& id)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    LOGI("Acquiring the resource #%u", id);
-    auto it = m_resources.find(id);
-    if (it != m_resources.end())
+    LOGI("Acquiring the resource #%s", id.c_str());
+    auto it = ResourceHolder<T>::m_resources.find(id);
+    if (it != ResourceHolder<T>::m_resources.end())
       {
         it->second->acquire();
-        return it->second;
+        return &(it->second->object());
       }
 
     CPP_LOG(logger::Error)
       << "Trying to acquire a non-existent resource "
-      << (uint32_t) id << ". This current action is ignored !\n";
+      << id << ". This current action is ignored !\n";
     return nullptr;
+  }
+
+  template <class T>
+  inline T *acquire(Resource<T> &resource)
+  {
+    resource.acquire();
+    return resource.object();
   }
 
   //------------------------------------------------------------------
   //! Get the resource address in read only access.
   //------------------------------------------------------------------
-  inline IResource<T> const *look(T const& id)
+  template <class T>
+  inline Resource<T> *find(std::string const& id)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto it = m_resources.find(id);
-    if (it != m_resources.end())
+    auto it = ResourceHolder<T>::m_resources.find(id);
+    if (it != ResourceHolder<T>::m_resources.end())
       {
         return it->second;
       }
@@ -156,23 +172,25 @@ public:
   //! is still using it, the resource is not destroyed. If nobody uses
   //! it, the resource is destroyed.
   //------------------------------------------------------------------
-  void dispose(T const& id)
+  template <class T>
+  void dispose(std::string const& id)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto it = m_resources.find(id);
-    if (it != m_resources.end())
+    auto it = ResourceHolder<T>::m_resources.find(id);
+    if (it != ResourceHolder<T>::m_resources.end())
       {
         uint32_t owners = it->second->dispose();
-        LOGI("Disposing of the resource #%u (%u owner(s))", id, owners);
+        LOGI("Disposing of the resource #%s (%u owner(s))",
+             id.c_str(), owners);
         if (0U == owners)
           {
             // Note: compared to
             // http://loulou.developpez.com/tutoriels/moteur3d/ this
             // line was added because only the ResourceManager can
             // dispose of the resource.
-            LOGI("Destroying the resource #%u", id);
-            m_resources.erase(it);
+            LOGI("Destroying the resource #%s", id.c_str());
+            ResourceHolder<T>::m_resources.erase(it);
           }
       }
     else
@@ -184,30 +202,77 @@ public:
       }
   }
 
+  template <class T>
+  void dispose(Resource<T> &resource)
+  {
+    resource.dispose();
+  }
+
   //------------------------------------------------------------------
   //! \brief Return the number of resources currently stored.
   //------------------------------------------------------------------
+  template <class T>
   inline uint32_t size()
   {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    return m_resources.size();
+    return ResourceHolder<T>::m_resources.size();
   }
 
 protected:
 
   //------------------------------------------------------------------
-  //! \brief Remove an allocated resource in the list of resources.
+  //! \brief
   //------------------------------------------------------------------
-  void remove(T const& id)
+  template <class T>
+  Resource<T> *create()
+  {
+    return new Resource<T>();
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Insert an allocated resource in the list of resources.
+  //------------------------------------------------------------------
+  template <class T>
+  bool add(Resource<T> *resource)
   {
     std::lock_guard<std::mutex> lock(m_mutex);
 
-    auto it = m_resources.find(id);
-    if (it != m_resources.end())
+    if (nullptr == resource)
       {
-        LOGI("Destroying the resource #%u", id);
-        m_resources.erase(it);
+        LOGF("Trying to add a resource with a NULL pointer");
+        return false;
+      }
+
+    const std::string sid = std::to_string(resource->object().id());
+    if (ResourceHolder<T>::m_resources.find(sid) != ResourceHolder<T>::m_resources.end())
+      {
+        CPP_LOG(logger::Warning)
+          << "Trying to add a duplicated resource #"
+          << sid << ". This current action is ignored !\n";
+        return false;
+      }
+
+    CPP_LOG(logger::Info)
+      << "Added the resource #" << sid
+      << " to the ResourceManager\n";
+    ResourceHolder<T>::m_resources[sid] = resource;
+    return true;
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Remove an allocated resource in the list of resources.
+  //------------------------------------------------------------------
+  template <class T>
+  void remove(std::string const& id)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    auto it = ResourceHolder<T>::m_resources.find(id);
+    if (it != ResourceHolder<T>::m_resources.end())
+      {
+        LOGI("Destroying the resource #%s", id.c_str());
+        ResourceHolder<T>::m_resources.erase(it);
       }
     else
       {
@@ -216,11 +281,6 @@ protected:
           << id << ". This current action is ignored !\n";
       }
   }
-
-  //------------------------------------------------------------------
-  //! \brief the list of resources.
-  //------------------------------------------------------------------
-  std::map<T, IResource<T>*> m_resources;
 
   //------------------------------------------------------------------
   //! \brief Allow several threads to access to the manager.

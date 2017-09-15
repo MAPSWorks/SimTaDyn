@@ -21,7 +21,7 @@
 #ifndef SHAPEFILE_HPP_
 #  define SHAPEFILE_HPP_
 
-#  include "ILoader.hpp"
+#  include "ILoader.tpp"
 #  include "SimTaDynMap.hpp"
 
 // ***********************************************************************************************

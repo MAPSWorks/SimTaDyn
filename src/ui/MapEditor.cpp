@@ -28,8 +28,6 @@ MapEditor::MapEditor()
 {
   LOGI("Creating MapEditor");
 
-  registerLoaders();
-
   // Menu '_Map'
   {
     m_menuitem[simtadyn::MapMenu].set_label("_Map");
@@ -68,10 +66,10 @@ MapEditor::MapEditor()
     m_menu[simtadyn::MapMenu].append(m_menuseparator[0]);
 
     //
-    m_submenu[5].set_label("Replace Map");
+    m_submenu[5].set_label("Import Map");
     m_image[5].set_from_icon_name("document-import", Gtk::ICON_SIZE_MENU);
     m_submenu[5].set_image(m_image[5]);
-    m_submenu[5].signal_activate().connect([this](){ MapEditor::replace(); });
+    m_submenu[5].signal_activate().connect([this](){ MapEditor::import(); });
     m_menu[simtadyn::MapMenu].append(m_submenu[5]);
 
     //
@@ -129,16 +127,6 @@ MapEditor::~MapEditor()
 }
 
 // *************************************************************************************************
-//
-// *************************************************************************************************
-void MapEditor::registerLoaders()
-{
-  LoaderManager &lm = LoaderManager::instance();
-  lm.registerLoader(new ShapefileLoader(), "shp");
-  lm.registerLoader(new SimTaDynFileLoader(), "spak");
-}
-
-// *************************************************************************************************
 //!
 // *************************************************************************************************
 void MapEditor::close()
@@ -158,13 +146,12 @@ void MapEditor::close()
     }
 
   // Get the previous map
-  ResourceManager<Key> &rm =
-    ResourceManager<Key>::instance();
+  ResourceManager &rm = ResourceManager::instance();
 
   do
     {
       --id;
-      map = (SimTaDynMap*) rm.look(id); // FIXME: completement faux car peut retourner une texture
+      map = (SimTaDynMap*) rm.find<SimTaDynMap>(std::to_string(id));
     }
   while ((nullptr != map) && (0U != id));
   m_current_map.set(map);
@@ -173,22 +160,9 @@ void MapEditor::close()
 // *************************************************************************************************
 //
 // *************************************************************************************************
-SimTaDynMap* MapEditor::map(const Key id)
+SimTaDynMap* MapEditor::map(Key const id)
 {
-  ResourceManager<Key> &rm =
-    ResourceManager<Key>::instance();
-
-  SimTaDynMap *map = (SimTaDynMap*) rm.look(id);
-  if (nullptr != map)
-    {
-      m_current_map.set(map);
-    }
-  else
-    {
-      LOGW("Cannot select SimTaDyn map #%u", id);
-    }
-
-  return map;
+  return m_current_map.get(id);
 }
 
 // *************************************************************************************************
@@ -200,7 +174,8 @@ void MapEditor::newMap()
 
   SimTaDynMap *map = new SimTaDynMap();
   map->addListener(m_listener);
-  ResourceManager<Key>::instance().add(map);
+  bool res = ResourceManager::instance().add<SimTaDynMap>(*map);
+  assert((true == res) && "There is a bug with unique ID. Collisions shall not occured");
   m_current_map.set(map);
 }
 
@@ -277,18 +252,18 @@ bool MapEditor::doOpen(std::string const& filename, const bool new_map, const bo
 // *************************************************************************************************
 bool MapEditor::load(std::string const& filename, SimTaDynMap* &map)
 {
-  ResourceManager<Key> &rm = ResourceManager<Key>::instance();
+  ResourceManager &rm = ResourceManager::instance();
 
   try
     {
       bool dummy_map = (nullptr == map);
-      if ((dummy_map) || (nullptr == rm.look(map->id())))
+      if ((dummy_map) || (nullptr == rm.find<SimTaDynMap>(std::to_string(*map))))
         {
           LoaderManager::instance().loadFromFile(filename, map);
           if (dummy_map)
             {
               map->addListener(m_listener);
-              rm.add(map);
+              rm.add<SimTaDynMap>(*map);
               m_current_map.set(map);
             }
         }

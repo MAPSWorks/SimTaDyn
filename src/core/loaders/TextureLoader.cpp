@@ -18,4 +18,20 @@
 // along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 //=====================================================================
 
-#include "ILoader.hpp"
+#include "TextureLoader.hpp"
+
+void TextureLoader::loadFromFile(std::string const& filename, GLTexture2D* &texture)
+{
+  bool dummy_texture = (nullptr == texture);
+
+  LOGI("Loading the SimTaDynFile '%s' in an %s",
+       filename.c_str(), (dummy_texture ? "dummy texture" : "already opened texture"));
+
+  texture = new GLTexture2D("vertTexCoord");
+  if (false == texture->load(filename, false))
+    {
+      std::string msg("Failed loading the texture '" + filename + "'");
+      LOGF("%s", msg.c_str());
+      LoaderException e(msg);
+    }
+}

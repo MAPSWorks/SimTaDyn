@@ -23,11 +23,14 @@
 
 #  include "ShapeFile.hpp"
 #  include "SimTaDynFile.hpp"
+#  include "TextureLoader.hpp"
 
 #  include "Utilities/GenHierarchies.h"
+using namespace Yes;
 
 typedef TYPELIST_1(SimTaDynMap) ResourceList;
 
+#  include "ResourceManager.tpp"
 #  include "LoaderManager.tpp"
 
 #endif

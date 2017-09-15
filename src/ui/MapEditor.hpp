@@ -28,6 +28,95 @@
 
 class LoaderManager;
 
+// ***********************************************************************************************
+//! \brief A class holding the currently edited SimTaDynMap. When
+//! the user changes of map, this class will notifies to observers that
+//! map changed.
+// ***********************************************************************************************
+class SimTaDynMapHolder
+{
+public:
+
+  SimTaDynMapHolder()
+  {
+    m_map = nullptr;
+  }
+
+  void set(SimTaDynMap* p)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_map != p)
+      {
+        ResourceManager &rm = ResourceManager::instance();
+        const std::string sid = std::to_string(*m_map);
+        if (nullptr != m_map)
+          {
+            //FIXME MapEditor::save();
+            rm.dispose<SimTaDynMap>(sid);
+          }
+        m_map = p;
+        if (nullptr != p)
+          {
+            SimTaDynMap *res = rm.acquire<SimTaDynMap>(sid);
+            assert(nullptr != res);
+            p->notify();
+            // TODO ---> DrawingArea::onNotify(){>attachModel(*map);}
+          }
+      }
+  }
+
+  SimTaDynMap* get(Key const id)
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    const std::string sid = std::to_string(id);
+
+    // The wanted map is already the current map
+    if ((nullptr != m_map) && (std::to_string(*m_map) == sid))
+      return m_map;
+
+    // Get the desired map
+    ResourceManager &rm = ResourceManager::instance();
+    SimTaDynMap *new_map = rm.acquire<SimTaDynMap>(sid);
+
+    // The desired map does not exist
+    if (nullptr == new_map)
+      {
+        if (nullptr == m_map)
+          {
+            LOGE("Cannot select SimTaDyn map #%u because there is no map to select", id);
+          }
+        else
+          {
+            LOGE("Cannot select SimTaDyn map #%u. Keep using the current map #%u", id, *m_map);
+          }
+        return m_map;
+      }
+
+    // The desired map exist, close the current map (if opened)
+    if (nullptr != m_map)
+      {
+        rm.dispose<SimTaDynMap>(std::to_string(*m_map));     //FIXME MapEditor::save();
+      }
+
+    m_map = new_map;
+    m_map->notify();
+    // TODO ---> DrawingArea::onNotify(){>attachModel(*map);}
+    return m_map;
+  }
+
+  SimTaDynMap* get()
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+
+    return m_map;
+  }
+
+protected:
+
+  SimTaDynMap* m_map;
+  std::mutex m_mutex;
+};
+
 // *************************************************************************************************
 // This class implements a Controler pattern of the Model-View-Controler (MVC) design pattern.
 // *************************************************************************************************
@@ -86,14 +175,26 @@ public:
   }
   SimTaDynMap* map(const Key id);
 
-  //! \brief Load a new map from a file through a dialog box.
+  //! \brief Load a new SimTaDyn map from a file through a dialog box.
   inline bool open()
   {
-    return dialogLoadMap(true, false);
+    return dialogLoadMap(false, true);
   }
 
   //! \brief Load a new map from a file.
   inline bool open(std::string const& filename)
+  {
+    return doOpen(filename, false, true);
+  }
+
+  //! \brief Load a new map from a file through a dialog box.
+  inline bool import()
+  {
+    return dialogLoadMap(true, false);
+  }
+
+    //! \brief Load a new map from a file through a dialog box.
+  inline bool import(std::string const& filename)
   {
     return doOpen(filename, true, false);
   }
@@ -111,18 +212,6 @@ public:
   inline bool addMap(std::string const& filename)
   {
     return doOpen(filename, false, false);
-  }
-
-  //! \brief Load a map and replace the current map.
-  inline bool replace()
-  {
-    return dialogLoadMap(false, true);
-  }
-
-  //! \brief Load a map and replace the current map.
-  inline bool replace(std::string const& filename)
-  {
-    return doOpen(filename, false, true);
   }
 
   //! \brief Reset the map (suppres everything)
@@ -151,7 +240,6 @@ public:
 
 protected:
 
-  void registerLoaders();
   virtual bool load(const std::string& filename, SimTaDynMap* &oldmap);
   bool doOpen(std::string const& filename, const bool new_map, const bool reset_map);
   bool dialogLoadMap(const bool new_map, const bool reset_map);

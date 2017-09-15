@@ -18,36 +18,26 @@
 // along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 //=====================================================================
 
-#ifndef RESOURCES_TESTS_HPP_
-#  define RESOURCES_TESTS_HPP_
+#ifndef TEXTURELOADER_HPP_
+#  define TEXTURELOADER_HPP_
 
-#include <cppunit/TestFixture.h>
-#include <cppunit/TestResult.h>
-#include <cppunit/extensions/HelperMacros.h>
+#  include "ILoader.tpp"
+#  include "GLTextures.hpp"
 
-#define protected public
-#define private public
-#include "Resource.tpp"
-#include "ILoader.tpp"
-#undef protected
-#undef private
-
-class ResourcesTests : public CppUnit::TestFixture
+// ***********************************************************************************************
+//! \brief
+// ***********************************************************************************************
+class TextureLoader
+  : public ILoader<GLTexture2D>
 {
-  // CppUnit macros for setting up the test suite
-  CPPUNIT_TEST_SUITE(ResourcesTests);
-  CPPUNIT_TEST(testsResources);
-  CPPUNIT_TEST(testsResourceManager);
-  CPPUNIT_TEST(testsLoaderManager);
-  CPPUNIT_TEST_SUITE_END();
-
 public:
 
-  void setUp();
-  void tearDown();
-  void testsResources();
-  void testsResourceManager();
-  void testsLoaderManager();
+  TextureLoader()
+    : ILoader<GLTexture2D>("OpenGL Texture")
+  {
+    LOGI("Creating an OpenGL loader %p", this);
+  }
+  virtual void loadFromFile(std::string const& filename, GLTexture2D* &texture) override;
 };
 
-#endif /* RESOURCES_TESTS_HPP_ */
+#endif

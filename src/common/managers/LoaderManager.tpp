@@ -22,14 +22,13 @@
 #ifndef LOADER_MANAGER_TPP_
 #  define LOADER_MANAGER_TPP_
 
-#  include "ILoader.hpp"
+#  include "ILoader.tpp"
 #  include "Config.hpp"
 #  include "Logger.hpp"
 
 // Inspired by: http://loulou.developpez.com/tutoriels/moteur3d/
 // document: "Part 4: Gestion des ressources" and its code "YesEngine"
-// but this current code is different than the original code.
-using namespace Yes;
+// but this current code is different from the original code.
 
 // **************************************************************
 //! \brief Define a class managing a list of ILoader<T>.
@@ -55,7 +54,10 @@ private:
   //------------------------------------------------------------------
   //! \brief Private because of Singleton.
   //------------------------------------------------------------------
-  LoaderManager() { };
+  LoaderManager()
+  {
+    registerAllLoaders();
+  };
 
   //------------------------------------------------------------------
   //! \brief Private because of Singleton.
@@ -246,6 +248,8 @@ public:
 //FIXME <--- Mettre dans un classe Listener<T> + macro pour generer les notify
 
 protected:
+
+  virtual void registerAllLoaders();
 
   //------------------------------------------------------------------
   //! \brief Look in the hash table if the file extension is known and

@@ -22,11 +22,8 @@
 #  define SIMTADYN_MAP_HPP_
 
 #  include "Vertex.hpp"
-//#  include "IResource.tpp"
-#  include "ResourceManager.tpp"
 #  include "RTree.hpp"
 #  include "SimTaDynGraph.hpp"
-//#  include "Set.tpp"
 #  include "GLCollection.tpp"
 
 class SimTaDynMap;
@@ -52,8 +49,7 @@ public:
 //! the MVC design pattern, where SimTaDynMap is the model).
 // *************************************************************************************************
 class SimTaDynMap
-  : public IResource<Key>,
-    private UniqueID<SimTaDynMap>
+  : private UniqueID<SimTaDynMap>
 {
   friend class MapEditor;
 
@@ -61,7 +57,7 @@ public:
 
   //! \brief Empty constructor.
   SimTaDynMap()
-    : IResource(UniqueID<SimTaDynMap>::getID()),
+    : m_id(UniqueID<SimTaDynMap>::getID()),
       m_name("Map_" + std::to_string(m_id)),
       m_graph("graph_01")
   {
@@ -70,7 +66,7 @@ public:
 
   //! \brief Constructor with the desired name for the map.
   SimTaDynMap(std::string const& name)
-    : IResource(UniqueID<SimTaDynMap>::getID()),
+    : m_id(UniqueID<SimTaDynMap>::getID()),
       m_name(name),
       m_graph("graph_01")
   {
@@ -85,6 +81,15 @@ public:
 
   //! \brief Return the unique identifier.
   operator int()
+  {
+    return m_id;
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Return the unique identifier. Derived class shall init
+  //! m_id.
+  //------------------------------------------------------------------
+  virtual inline Key id() const
   {
     return m_id;
   }
@@ -230,6 +235,11 @@ protected:
   //! \brief List of observers attached to this map events.
   std::vector<ISimTaDynMapListener*> m_listeners;
 
+  //------------------------------------------------------------------
+  //! The unique identifer for the resource.
+  //------------------------------------------------------------------
+  Key m_id;
+
 public:
 
   //! \brief Give a name to the element which will be displayed in the
@@ -264,55 +274,6 @@ public:
   //Set<Vertex, 8U, Block> m_vertices;
   GLVertexCollection<Vector3f, config::graph_container_nb_elements> pos;
   GLVertexCollection<Color, config::graph_container_nb_elements> col;
-};
-
-// ***********************************************************************************************
-//! \brief A class holding the currently edited SimTaDynMap. When
-//! the user changes of map, this class will notifies to observers that
-//! map changed.
-// ***********************************************************************************************
-class SimTaDynMapHolder
-{
-public:
-
-  SimTaDynMapHolder()
-  {
-    m_map = nullptr;
-  }
-
-  void set(SimTaDynMap* p)
-  {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    if (m_map != p)
-      {
-        ResourceManager<Key> &rm =
-          ResourceManager<Key>::instance();
-        if (nullptr != m_map)
-          {
-            //FIXME MapEditor::save();
-            rm.dispose(m_map->id());
-          }
-        m_map = p;
-        if (nullptr != p)
-          {
-            rm.acquire(m_map->id());
-            p->notify(); // TODO ---> DrawingArea::onNotify(){>attachModel(*map);}
-          }
-      }
-  }
-
-  SimTaDynMap* get()
-  {
-    std::lock_guard<std::mutex> lock(m_mutex);
-
-    return m_map;
-  }
-
-protected:
-
-  SimTaDynMap* m_map;
-  std::mutex m_mutex;
 };
 
 #endif /* SIMTADYN_MAP_HPP_ */

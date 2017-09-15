@@ -21,7 +21,7 @@
 #ifndef SIMTADYNFILE_HPP_
 #  define SIMTADYNFILE_HPP_
 
-#  include "ILoader.hpp"
+#  include "ILoader.tpp"
 #  include "SimTaDynMap.hpp"
 
 // ***********************************************************************************************
@@ -32,7 +32,7 @@ class SimTaDynFileLoader : public ILoader<SimTaDynMap>
 public:
 
   SimTaDynFileLoader()
-    : ILoader<SimTaDynMap>("SimTaDynFile")
+    : ILoader<SimTaDynMap>("SimTaDyn File")
   {
     LOGI("Creating a SimTaDynFile loader %p", this);
   }
