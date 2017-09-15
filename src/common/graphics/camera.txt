@@ -1,0 +1,76 @@
+//=====================================================================
+// SimTaDyn: A GIS in a spreadsheet.
+// Copyright 2017 Quentin Quadrat <lecrapouille@gmail.com>
+//
+// This file is part of SimTaDyn.
+//
+// SimTaDyn is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
+//=====================================================================
+
+  Camera2D m_default_camera;
+  Camera2D m_current_camera;
+
+
+
+
+
+
+  inline bool needRefresh() const
+  {
+    return true;//!m_queue.empty();
+  }
+
+  /*
+   * When camera states change, apply
+   * these changement to the screen.
+   */
+  void applyViewport(Camera2D& camera) // FIXME: pas de const a cause de getTransform
+  {
+    (void) camera;
+    //std::cerr << "applyViewport A refaire" << std::endl;
+    // FIXME
+  }
+
+  /*
+   * Apply the viewport for the current camera.
+   */
+  inline void applyViewport() // FIXME const;
+  {
+    applyViewport(m_current_camera);
+  }
+
+  /*
+   * When several cameras are available, select
+   * the one to be the current one.
+   */
+  inline void camera2D(const Camera2D& camera)
+  {
+    m_current_camera = camera;
+  }
+
+  /*
+   * Accessor. Return the current camera
+   */
+  inline Camera2D& camera2D()
+  {
+    return m_current_camera;
+  }
+
+  /*
+   * Backup settings to the current camera
+   */
+  inline void restoreCamera2D()
+  {
+    m_current_camera = m_default_camera;
+  }
