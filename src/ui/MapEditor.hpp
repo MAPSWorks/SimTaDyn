@@ -258,14 +258,9 @@ protected:
   bool popupAskForSaving(SimTaDynMapPtr map, const bool closing);
 
   //------------------------------------------------------------------
-  //! \brief Create a dummy map and set it as current map.
-  //------------------------------------------------------------------
-  SimTaDynMapPtr create();
-
-  //------------------------------------------------------------------
   //! \brief Add a map as resource in the ResourceManager
   //------------------------------------------------------------------
-  void add(const Key name, SimTaDynMapPtr map);
+  void add(/*const Key name, */SimTaDynMapPtr map);
 
   //------------------------------------------------------------------
   //! \brief Remove a map as resource from the ResourceManager
@@ -290,7 +285,6 @@ protected:
   Gtk::ImageMenuItem     m_submenu[8];
   Gtk::Image             m_image[8];
   Gtk::SeparatorMenuItem m_menu_separator[2];
-  Gtk::SeparatorToolItem m_toolbar_separator[2];
   Inspector              m_inspector;
   Gtk::VBox              m_vbox;
   Gtk::HBox              m_hbox;

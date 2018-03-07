@@ -1,5 +1,6 @@
-#include "MapTools.hpp"
+#include "MapEditorCommands.hpp"
 #include "Logger.hpp"
+#include <functional> // placeholder
 
 // ***********************************************************************************************
 //! \brief
@@ -101,10 +102,10 @@ MapEditorCommands::MapEditorCommands()
     m_action_on(m_toolbar)
 {
   // Init map edition tool to dummy action
-  m_edition_tools[ActionType::Add] = new AddCellTool(*this);
-  m_edition_tools[ActionType::Remove] = new RemoveCellTool(*this);
-  m_edition_tools[ActionType::Select] = new SelectCellTool(*this);
-  m_edition_tools[ActionType::Move] = new MoveCellTool(*this);
+  m_edition_tools[ActionType::Add] = new AddCellTool(/* *this*/);
+  m_edition_tools[ActionType::Remove] = new RemoveCellTool(/* *this*/);
+  m_edition_tools[ActionType::Select] = new SelectCellTool(/* *this*/);
+  m_edition_tools[ActionType::Move] = new MoveCellTool(/* *this*/);
 
   using namespace std::placeholders;
   m_toolbar.set_property("orientation", Gtk::ORIENTATION_VERTICAL);

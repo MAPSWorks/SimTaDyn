@@ -56,7 +56,7 @@ OBJ_CORE       = ASpreadSheetCell.o ASpreadSheet.o SimTaDynForth.o SimTaDynSheet
 OBJ_LOADERS    = LoaderException.o SimTaDynLoaders.o ShapeFileLoader.o SimTaDynFileLoader.o TextureFileLoader.o
 # SimTaDynFile.o
 OBJ_GUI        = Redirection.o PackageExplorer.o TextEditor.o ForthEditor.o
-OBJ_GUI       += Inspector.o MapEditor.o DrawingArea.o SimTaDynWindow.o
+OBJ_GUI       += Inspector.o MapEditorCommands.o MapEditor.o DrawingArea.o SimTaDynWindow.o
 OBJ_SIMTADYN   = main.o
 OBJ            = $(OBJ_EXTERNAL) $(OBJ_UTILS) $(OBJ_PATTERNS) $(OBJ_MATHS) $(OBJ_CONTAINERS) \
                  $(OBJ_MANAGERS) $(OBJ_GRAPHS) $(OBJ_OPENGL) $(OBJ_FORTH) $(OBJ_CORE) $(OBJ_LOADERS) \

@@ -2,6 +2,7 @@
 #  define MAP_EDITOR_COMMANDS_HPP
 
 #  include "ToggleButtons.hpp"
+#  include "Logger.hpp"
 
 //class IEditor {};
 
@@ -97,10 +98,11 @@ private:
 
 private:
 
-  IMouseClickEvent *m_edition_tools[ActionType::LastAction + 1u];
-  Gtk::Toolbar      m_toolbar;
-  ToggleButtons     m_action_type;
-  ToggleButtons     m_action_on;
+  IMouseClickEvent      *m_edition_tools[ActionType::LastAction + 1u];
+  Gtk::SeparatorToolItem m_toolbar_separator[2];
+  Gtk::Toolbar           m_toolbar;
+  ToggleButtons          m_action_type;
+  ToggleButtons          m_action_on;
 };
 
 #endif

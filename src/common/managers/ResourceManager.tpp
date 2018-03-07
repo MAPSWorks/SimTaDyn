@@ -97,15 +97,17 @@ public:
     ResourcePtr r = Resource::create<R>();
     if (true == add(id, r, force))
       {
+        LOGI("Added");
         return std::static_pointer_cast<R>(r);
       }
+    LOGI("nop");
     return nullptr;
   }
 
   //------------------------------------------------------------------
   //! \brief Insert an allocated resource in the list of resources.
   //------------------------------------------------------------------
-  bool add(const T& id, ResourcePtr& resource, const bool force = true)
+  bool add(const T& id, ResourcePtr resource, const bool force = true)
   {
     CPP_LOG(logger::Info) << "Adding the resource #" << id << "\n";
     std::lock_guard<std::mutex> lock(m_mutex);
@@ -173,7 +175,7 @@ public:
     if (ResourceHolder<T>::m_resources.empty())
       return nullptr;
 
-    return *ResourceHolder<T>::m_resources.begin();
+    return ResourceHolder<T>::m_resources.begin();
   }
 
   //------------------------------------------------------------------

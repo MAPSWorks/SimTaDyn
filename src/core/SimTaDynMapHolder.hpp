@@ -61,15 +61,28 @@ public:
     return m_map;
   }
 
-  //! \brief Create and acquire a new map
-  inline SimTaDynMapPtr create(std::string const& name)
+  SimTaDynMapPtr create()
   {
-    SimTaDynMapPtr map = SimTaDynMapManager::instance().create(name);
-    if (nullptr != map)
+    uint32_t i = 0u;
+    const std::string base_name = "NewMap-";
+    std::string name;
+    SimTaDynMapPtr map;
+
+    while (true)
       {
-        use(map);
+        LOGI("iiiii");
+        ++i;
+        name = base_name + std::to_string(i);
+        map = SimTaDynMapManager::instance().create(name);
+
+        if ((nullptr == map) && (i >= 65535u))
+          {
+            LOGF("Failed creating a new SimTaDyn map !");
+            return nullptr;
+          }
       }
 
+    LOGI("Created a dummy SimTaDyn map named '%s'", name.c_str());
     return map;
   }
 
@@ -82,7 +95,14 @@ public:
   //! \brief Return the previous map
   inline void usePreviousMap()
   {
-    use(SimTaDynMapManager::instance().acquire());
+    // Get previous map
+    SimTaDynMapPtr map = nullptr;//FIXME SimTaDynMapManager::instance().acquire();
+    if (nullptr == map)
+      {
+        // Was the last map. Create a new one
+        map = create();
+      }
+    use(map);
   }
 
   void onMapModified(SimTaDynMapPtr p)

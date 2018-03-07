@@ -101,7 +101,7 @@ MapEditor::MapEditor()
 MapEditor::~MapEditor()
 {
   LOGI("Destroying MapEditor");
-  close();
+  close();// FIXME save(true);
 
   // TODO: be sure no Forth script is running on the map before destroying mapq
 }
@@ -130,32 +130,6 @@ bool MapEditor::save(const bool closing)
   // Ask the user for saving it or not before closing for modified map
   // or newly created.
   return popupAskForSaving(m_map, closing);
-}
-
-// *************************************************************************************************
-//
-// *************************************************************************************************
-SimTaDynMapPtr MapEditor::create()
-{
-  uint32_t i = 1u;
-  const std::string base_name = "NoName-";
-  std::string name;
-  SimTaDynMapPtr map;
-
-  while (true)
-    {
-      name = base_name + std::to_string(i);
-      map = create(name);
-
-      if ((nullptr == map) && (i++ < 65535u))
-        {
-          LOGF("Failed creating a new SimTaDyn map !");
-          return nullptr;
-        }
-    }
-
-  LOGI("Created a dummy SimTaDyn map named '%s'", name.c_str());
-  return map;
 }
 
 // *************************************************************************************************
@@ -287,7 +261,8 @@ bool MapEditor::doSave(std::string const& filename, SimTaDynMapPtr map)
 {
   try
     {
-      LoaderManager::instance().saveToFile(filename, map);
+      // FIXME: manque le renommage de la carte si SaveAs
+      LoaderManager::instance().saveToFile(map, filename);
     }
   catch (LoaderException const &e)
     {
@@ -316,7 +291,7 @@ bool MapEditor::doSave(std::string const& filename, SimTaDynMapPtr map)
 bool MapEditor::doOpen(std::string const& filename, const bool new_map, const bool reset_map)
 {
   std::string name = (reset_map) ? File::baseName(filename) : filename;
-  SimTaDynMapPtr map = (new_map) ? SimTaDynMapManager::instance().create(name) : m_current_map.get();
+  SimTaDynMapPtr map = (new_map) ? SimTaDynMapManager::instance().create(name) : getMap();
 
   if ((reset_map) && (nullptr != map))
     {
@@ -353,14 +328,14 @@ bool MapEditor::load(std::string const& filename, SimTaDynMapPtr map)
             }
           else
             {
-              map->m_signal_map_changed.emit();
+              map->m_signal_map_modified.emit(map);
             }
         }
     }
   catch (LoaderException const &e)
     {
       loaded_failure.emit(filename, e.message());
-      Gtk::MessageDialog dialog(window()), e.what(), false, Gtk::MESSAGE_WARNING);
+      Gtk::MessageDialog dialog(window(), e.what(), false, Gtk::MESSAGE_WARNING);
       dialog.set_secondary_text("Could not load '" + filename + "' as a SimTaDyn map. Reason: "
                                 + e.message());
       dialog.run();
@@ -369,7 +344,7 @@ bool MapEditor::load(std::string const& filename, SimTaDynMapPtr map)
   catch (std::exception const &e)
     {
       loaded_failure.emit(filename, e.what());
-      Gtk::MessageDialog dialog(window()), e.what(), false, Gtk::MESSAGE_WARNING);
+      Gtk::MessageDialog dialog(window(), e.what(), false, Gtk::MESSAGE_WARNING);
       dialog.set_secondary_text("Could not load '" + filename + "' as a SimTaDyn map.");
       dialog.run();
       return false;
@@ -393,9 +368,9 @@ void MapEditor::add(SimTaDynMapPtr p)
   else
     {
       // Failed. Ask the user to replace the map
-      Gtk::MessageDialog dialog(window(), e.what(), false,
+      Gtk::MessageDialog dialog(window(), "ResourceManager", false,
                                 Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO);
-      dialog.set_secondary_text("Warning the SimTaDyn map '" + p->name +
+      dialog.set_secondary_text("Warning the SimTaDyn map '" + p->name() +
                                 "' already exists. Replace it ?");
       int result = dialog.run();
       if (Gtk::RESPONSE_YES == result)
@@ -412,7 +387,7 @@ void MapEditor::add(SimTaDynMapPtr p)
 bool MapEditor::exec() // FIXME: Exec(typeCell, nodeID)
 {
   SimForth &forth = SimForth::instance();
-  SimTaDynSheet *sheet = map()->sheet();
+  SimTaDynSheet *sheet = nullptr;// FIXME map()->sheet();
 
   if (nullptr == sheet)
   {

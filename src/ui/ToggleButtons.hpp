@@ -1,6 +1,8 @@
 #ifndef TOGGLEBUTTONS_HPP
 #define TOGGLEBUTTONS_HPP
 
+#  include <gtkmm.h>
+
 // *************************************************************************************************
 //! \brief A set of buttons inserted in a toolbar passed as parameter. Lika Gtk::RadioButton only one
 //! button can be selected at once (pressed) other buttons are unpressed.
