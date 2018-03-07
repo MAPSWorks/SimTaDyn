@@ -165,6 +165,18 @@ public:
   }
 
   //------------------------------------------------------------------
+  //! \brief acquire the previously used resource.
+  //! FIXME: algorithm has to be made. Here we return the first element
+  //------------------------------------------------------------------
+  inline std::shared_ptr<R> acquire()
+  {
+    if (ResourceHolder<T>::m_resources.empty())
+      return nullptr;
+
+    return *ResourceHolder<T>::m_resources.begin();
+  }
+
+  //------------------------------------------------------------------
   //! \brief Call it when the resources is no longer needed. If someone
   //! is still using it, the resource is not destroyed. If nobody uses
   //! it, the resource is destroyed.
@@ -197,7 +209,6 @@ public:
         CPP_LOG(logger::Warning)
           << "Trying to dispose a non-existent resource #"
           << id << ". This current action is ignored !\n";
-        return ;
       }
   }
 

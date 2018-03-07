@@ -44,7 +44,7 @@
 //! Singleton1, a crash will occur when trying to write in the log.
 // *************************************************************************************************
 template <class T>
-class LongLifeSingleton
+class LongLifeSingleton // TODO: private NonCopyable
 {
 public:
 

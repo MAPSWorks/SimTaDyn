@@ -25,16 +25,8 @@
 //
 // *************************************************************************************************
 MapEditor::MapEditor()
-  : m_action_type(m_toolbar),
-    m_action_on(m_toolbar)
 {
   LOGI("Creating MapEditor");
-
-  // Init map edition tool to dummy action
-  m_edition_tools[ActionType::Add] = new AddCellTool();
-  m_edition_tools[ActionType::Remove] = new RemoveCellTool();
-  m_edition_tools[ActionType::Select] = new SelectCellTool();
-  m_edition_tools[ActionType::Move] = new MoveCellTool();
 
   // Menu '_Map'
   {
@@ -46,7 +38,7 @@ MapEditor::MapEditor()
     m_submenu[1].set_label("New Map");
     m_image[1].set_from_icon_name("document-new", Gtk::ICON_SIZE_MENU);
     m_submenu[1].set_image(m_image[1]);
-    m_submenu[1].signal_activate().connect([this](){ MapEditor::newMap(); });
+    m_submenu[1].signal_activate().connect([this](){ MapEditor::create(); });
     m_menu[simtadyn::MapMenu].append(m_submenu[1]);
 
     //
@@ -60,7 +52,7 @@ MapEditor::MapEditor()
     m_submenu[3].set_label("Save Map");
     m_image[3].set_from_icon_name("document-save", Gtk::ICON_SIZE_MENU);
     m_submenu[3].set_image(m_image[3]);
-    m_submenu[3].signal_activate().connect([this](){ MapEditor::save(); });
+    m_submenu[3].signal_activate().connect([this](){ MapEditor::save(false); });
     m_menu[simtadyn::MapMenu].append(m_submenu[3]);
 
     //
@@ -95,38 +87,11 @@ MapEditor::MapEditor()
     m_menu[simtadyn::MapMenu].append(m_submenu[7]);
   }
 
-  // Map toolbar (vertical)
-  {
-    using namespace std::placeholders;
-    m_toolbar.set_property("orientation", Gtk::ORIENTATION_VERTICAL);
-    m_toolbar.set_property("toolbar-style", Gtk::TOOLBAR_ICONS);
-
-    // Cells
-    m_action_on.append(ActionOn::Node, "Switch to Node mode", Gtk::Stock::YES,
-                       sigc::mem_fun(*this, &MapEditor::onActionOnSelected));
-    m_action_on.append(ActionOn::Arc, "Switch to Arc mode", Gtk::Stock::NO,
-                       sigc::mem_fun(*this, &MapEditor::onActionOnSelected));
-    m_action_on.append(ActionOn::Zone, "Switch to Zone mode", Gtk::Stock::HOME,
-                       sigc::mem_fun(*this, &MapEditor::onActionOnSelected));
-    m_action_on.append(m_toolbar_separator[0]);
-
-    // Operations on cells
-    m_action_type.append(ActionType::Add, "Remove a cell", Gtk::Stock::ADD,
-                         sigc::mem_fun(*this, &MapEditor::onActionTypeSelected));
-    m_action_type.append(ActionType::Remove, "Remove a cell", Gtk::Stock::REMOVE,
-                         sigc::mem_fun(*this, &MapEditor::onActionTypeSelected));
-    m_action_type.append(ActionType::Select, "Select a cell", Gtk::Stock::JUMP_TO,
-                         sigc::mem_fun(*this, &MapEditor::onActionTypeSelected));
-    m_action_type.append(ActionType::Move, "Move a cell", Gtk::Stock::JUMP_TO,
-                         sigc::mem_fun(*this, &MapEditor::onActionTypeSelected));
-                         m_toolbar.append(m_toolbar_separator[1]);
-  }
-
   // Pack all stuffs together
   {
     m_vbox.pack_start(m_inspector.m_scrolledwindow, Gtk::PACK_SHRINK);
     m_hbox.pack_start(m_vbox);
-    m_hbox.pack_start(m_toolbar, Gtk::PACK_SHRINK);
+    m_hbox.pack_start(toolbar(), Gtk::PACK_SHRINK);
   }
 }
 
@@ -136,10 +101,7 @@ MapEditor::MapEditor()
 MapEditor::~MapEditor()
 {
   LOGI("Destroying MapEditor");
-  delete m_edition_tools[ActionType::Add];
-  delete m_edition_tools[ActionType::Remove];
-  delete m_edition_tools[ActionType::Select];
-  delete m_edition_tools[ActionType::Move];
+  close();
 
   // TODO: be sure no Forth script is running on the map before destroying mapq
 }
@@ -147,77 +109,53 @@ MapEditor::~MapEditor()
 // *************************************************************************************************
 //!
 // *************************************************************************************************
-void MapEditor::onActionOnSelected_(const ActionOn id)
+bool MapEditor::close()
 {
-  LOGI("ActionOnSelected %u", id);
-  // TODO: afficher les id du type de cellule selectionnee
+  bool res = save(true);
+
+  // Get the previous map
+  usePreviousMap();
+  return res;
 }
 
 // *************************************************************************************************
 //!
 // *************************************************************************************************
-void MapEditor::onActionTypeSelected_(const ActionType id)
+bool MapEditor::save(const bool closing)
 {
-  LOGI("ActionTypeSelected %u", id);
-  // TODO changer le curseur
-}
+  // No map currently used or already saved.
+  if ((nullptr == m_map) || (!m_map->modified()))
+    return true;
 
-// *************************************************************************************************
-//!
-// *************************************************************************************************
-void MapEditor::close()
-{
-  SimTaDynMapPtr map = m_current_map.get();
-
-  // No map currently used.
-  if (nullptr == map)
-    return ;
-
-  // Look for another map
-  /*for (const auto& it: SimTaDynMapManager::instance().resources())
-    {
-      m_current_map.set(SimTaDynMapManager::instance().acquire(it->name));
-    }
-
-  // The current map was the only one.
-  if (it == SimTaDynMapManager::instance().resources().end())
-  {*/
-      map = nullptr;
-      //  }
-
-  m_current_map.set(map);
+  // Ask the user for saving it or not before closing for modified map
+  // or newly created.
+  return popupAskForSaving(m_map, closing);
 }
 
 // *************************************************************************************************
 //
 // *************************************************************************************************
-void MapEditor::newMap()
+SimTaDynMapPtr MapEditor::create()
 {
+  uint32_t i = 1u;
+  const std::string base_name = "NoName-";
+  std::string name;
   SimTaDynMapPtr map;
-  std::string base_name = "NoName";
-  std::string name(base_name);
-  uint32_t i = 1;
 
-  do
+  while (true)
     {
-      LOGI("Creating a dummy SimTaDyn map named '%s'", name.c_str());
-      map = SimTaDynMapManager::instance().create(name);
-      if (nullptr == map)
+      name = base_name + std::to_string(i);
+      map = create(name);
+
+      if ((nullptr == map) && (i++ < 65535u))
         {
-          LOGI("Failed ! Try with a new name");
-          name = base_name + '~' + std::to_string(i);
-          ++i;
+          LOGF("Failed creating a new SimTaDyn map !");
+          return nullptr;
         }
     }
-  while ((nullptr == map) && (i < 10));
 
-  if (nullptr == map)
-    {
-      LOGI("Failed 10 times ! Abort !");
-      return ;
-    }
-
-  m_current_map.set(map);
+  LOGI("Created a dummy SimTaDyn map named '%s'", name.c_str());
+  return map;
 }
 
 // *************************************************************************************************
@@ -225,9 +163,8 @@ void MapEditor::newMap()
 // *************************************************************************************************
 bool MapEditor::dialogLoadMap(const bool new_map, const bool reset_map)
 {
-  Gtk::FileChooserDialog dialog("Load a SimTaDyn map",
-                                Gtk::FILE_CHOOSER_ACTION_OPEN);
-  dialog.set_transient_for((Gtk::Window&) (*m_vbox.get_toplevel()));
+  Gtk::FileChooserDialog dialog("Load a SimTaDyn map", Gtk::FILE_CHOOSER_ACTION_OPEN);
+  dialog.set_transient_for(window());
   dialog.add_button(Gtk::Stock::CANCEL, Gtk::RESPONSE_CANCEL);
   dialog.add_button(Gtk::Stock::OPEN, Gtk::RESPONSE_OK);
 
@@ -260,6 +197,117 @@ bool MapEditor::dialogLoadMap(const bool new_map, const bool reset_map)
       doOpen(dialog.get_filename(), new_map, reset_map);
     }
   return false;
+}
+
+bool MapEditor::popupAskForSaving(SimTaDynMapPtr map, const bool closing)
+{
+  assert(nullptr != map);
+  Gtk::MessageDialog dialog(window(), "The document '" + map->name() +
+                            "' has been modified. Do you want to save it now ?",
+                            false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO);
+  dialog.add_button(Gtk::Stock::SAVE_AS, Gtk::RESPONSE_APPLY);
+
+  int result = dialog.run();
+  if (Gtk::RESPONSE_YES == result)
+    {      bool newly_created = (m_map->m_zip_path == "") ||
+        (m_map->m_base_dir == "") || (m_map->m_full_path == "");
+
+      // SaveAs or save
+      if (newly_created)
+        {
+          return dialogSaveAsMap(m_map);
+        }
+      else
+        {
+          return doSave(m_map->m_full_path, m_map);
+        }
+    }
+  else if (Gtk::RESPONSE_APPLY == result)
+    {
+      return dialogSaveAsMap(m_map);
+    }
+  else // other button
+    {
+      if (closing)
+        {
+          //FIXME m_map->modified(false);
+          return true;
+        }
+      return !m_map->modified();
+    }
+}
+
+// *************************************************************************************************
+// FIXME a la place de LoaderManager::instance().loaders<SimTaDynMap>()
+// Templater la methode puis mettre LoaderManager::instance().loaders<T>()
+// Comme ca on fait save et export
+// *************************************************************************************************
+bool MapEditor::dialogSaveAsMap(SimTaDynMapPtr map)
+{
+  Gtk::FileChooserDialog dialog("Save a SimTaDyn map", Gtk::FILE_CHOOSER_ACTION_OPEN);
+  dialog.set_transient_for(window());
+  dialog.add_button(Gtk::Stock::CANCEL, Gtk::RESPONSE_CANCEL);
+  dialog.add_button(Gtk::Stock::SAVE, Gtk::RESPONSE_OK);
+
+  // Open the dialog window and set the SimTaDyn path as current
+  // folder instead of using the "smart-current-folder" strategy
+  // thiugh by GTK+ developpers.
+  dialog.set_current_folder(config::data_path);
+
+  // Fill filters for selecting type of file. Use the loader manager
+  // for filling these filters because its knows all loaders which
+  // know file extensions they can load.
+  for (auto it: LoaderManager::instance().loaders<SimTaDynMap>())
+    {
+      auto filter = Gtk::FileFilter::create();
+      // loaders() return a map <<file extension>, <loader>>
+      std::string extension("*." + it.first);
+      filter->add_pattern(extension);
+      filter->set_name(it.second->description() + " (" + extension + ')');
+      dialog.add_filter(filter);
+    }
+
+  auto filter_any = Gtk::FileFilter::create();
+  filter_any->set_name("Any files");
+  filter_any->add_pattern("*");
+  dialog.add_filter(filter_any);
+
+  int result = dialog.run();
+  if (Gtk::RESPONSE_OK == result)
+    {
+      return doSave(dialog.get_filename(), map);
+    }
+  return false;
+}
+
+// *************************************************************************************************
+//
+// *************************************************************************************************
+bool MapEditor::doSave(std::string const& filename, SimTaDynMapPtr map)
+{
+  try
+    {
+      LoaderManager::instance().saveToFile(filename, map);
+    }
+  catch (LoaderException const &e)
+    {
+      saved_failure.emit(filename, e.message());
+      Gtk::MessageDialog dialog(window(), e.what(), false, Gtk::MESSAGE_WARNING);
+      dialog.set_secondary_text("Could not save '" + filename + "' as a SimTaDyn map. Reason: " +
+                                e.message());
+      dialog.run();
+      return false;
+    }
+  catch (std::exception const &e)
+    {
+      saved_failure.emit(filename, e.what());
+      Gtk::MessageDialog dialog(window(), e.what(), false, Gtk::MESSAGE_WARNING);
+      dialog.set_secondary_text("Could not save '" + filename + "' as a SimTaDyn map.");
+      dialog.run();
+      return false;
+    }
+
+  return true;
 }
 
 // *************************************************************************************************
@@ -300,17 +348,19 @@ bool MapEditor::load(std::string const& filename, SimTaDynMapPtr map)
           LoaderManager::instance().loadFromFile(filename, map);
           if (dummy_map)
             {
+              add(map);
               loaded_success.emit(map);
-              //FIXME rm.add(map);
-              m_current_map.set(map);
+            }
+          else
+            {
+              map->m_signal_map_changed.emit();
             }
         }
     }
   catch (LoaderException const &e)
     {
       loaded_failure.emit(filename, e.message());
-      Gtk::MessageDialog dialog((Gtk::Window&) *(m_vbox.get_toplevel()),
-                                e.what(), false, Gtk::MESSAGE_WARNING);
+      Gtk::MessageDialog dialog(window()), e.what(), false, Gtk::MESSAGE_WARNING);
       dialog.set_secondary_text("Could not load '" + filename + "' as a SimTaDyn map. Reason: "
                                 + e.message());
       dialog.run();
@@ -319,14 +369,41 @@ bool MapEditor::load(std::string const& filename, SimTaDynMapPtr map)
   catch (std::exception const &e)
     {
       loaded_failure.emit(filename, e.what());
-      Gtk::MessageDialog dialog((Gtk::Window&) *(m_vbox.get_toplevel()),
-                                e.what(), false, Gtk::MESSAGE_WARNING);
+      Gtk::MessageDialog dialog(window()), e.what(), false, Gtk::MESSAGE_WARNING);
       dialog.set_secondary_text("Could not load '" + filename + "' as a SimTaDyn map.");
       dialog.run();
       return false;
     }
 
   return true;
+}
+
+// *************************************************************************************************
+//
+// *************************************************************************************************
+void MapEditor::add(SimTaDynMapPtr p)
+{
+  if (nullptr == p)
+    return ;
+
+  if (SimTaDynMapManager::instance().add(p->name(), p, false))
+    {
+      use(p);
+    }
+  else
+    {
+      // Failed. Ask the user to replace the map
+      Gtk::MessageDialog dialog(window(), e.what(), false,
+                                Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO);
+      dialog.set_secondary_text("Warning the SimTaDyn map '" + p->name +
+                                "' already exists. Replace it ?");
+      int result = dialog.run();
+      if (Gtk::RESPONSE_YES == result)
+        {
+          SimTaDynMapManager::instance().add(p->name(), p, true);
+          use(p);
+        }
+    }
 }
 
 // *************************************************************************************************
@@ -357,84 +434,6 @@ bool MapEditor::exec() // FIXME: Exec(typeCell, nodeID)
   forth.dictionary().smudge(":");
 
   return res.first;
-}
-
-// *************************************************************************************************
-//
-// *************************************************************************************************
-void MapEditor::saveAs()
-{
-  /*Gtk::FileChooserDialog dialog("Save a SimTaDyn map file",
-                                Gtk::FILE_CHOOSER_ACTION_OPEN);
-  dialog.set_transient_for((Gtk::Window&) (*m_vbox.get_toplevel()));
-
-  // Set to the SimTaDyn path while no longer the GTK team strategy.
-  dialog.set_current_folder(config::data_path);
-
-  // Add response buttons the the dialog:
-  dialog.add_button(Gtk::Stock::CANCEL, Gtk::RESPONSE_CANCEL);
-  dialog.add_button(Gtk::Stock::OPEN, Gtk::RESPONSE_OK);
-
-  // Add filters, so that only certain file types can be selected:
-  auto filter_shapefile = Gtk::FileFilter::create();
-  filter_shapefile->set_name("Shape files"); // FIXME: should use LoaderManager informations to avoid double code
-  filter_shapefile->add_pattern("*.shp");
-  dialog.add_filter(filter_shapefile);
-
-  auto filter_simtadyn = Gtk::FileFilter::create();
-  filter_simtadyn->set_name("SimTaDyn files");
-  filter_simtadyn->add_pattern("*.simtadyn");
-  dialog.add_filter(filter_simtadyn);
-
-  auto filter_any = Gtk::FileFilter::create();
-  filter_any->set_name("Any files");
-  filter_any->add_pattern("*");
-  dialog.add_filter(filter_any);
-
-  int result = dialog.run();
-  if (Gtk::RESPONSE_OK == result)
-    {
-      MapEditor::save(dialog.get_filename());
-      }*/
-}
-
-// *************************************************************************************************
-//
-// *************************************************************************************************
-bool MapEditor::dialogSaveAsMap(const bool closing)
-{
-  return false;
-  /*Gtk::MessageDialog dialog((Gtk::Window&) (*m_vbox.get_toplevel()),
-                            "The document '" + map.m_name +
-                            "' has been modified. Do you want to save it now ?",
-                            false, Gtk::MESSAGE_QUESTION, Gtk::BUTTONS_YES_NO);
-  dialog.add_button(Gtk::Stock::SAVE_AS, Gtk::RESPONSE_APPLY);
-
-  int result = dialog.run();
-  if (Gtk::RESPONSE_YES == result)
-    {
-      if (0 == doc->m_filename.compare(""))
-        {
-          return MapEditor::saveAs(doc);
-        }
-      else
-        {
-          return doc->save();
-        }
-    }
-  else if (Gtk::RESPONSE_APPLY == result)
-    {
-      return MapEditor::saveAs(doc);
-    }
-  else // other button
-    {
-      if (closing)
-        {
-          doc->modified(false);
-          return true;
-        }
-      return !doc->modified();
-      }*/
 }
 
 // **************************************************************

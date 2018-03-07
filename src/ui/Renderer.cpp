@@ -191,7 +191,11 @@ bool GLRenderer::setupGraphics()
   // Signals
   MapEditor::instance().loaded_success.connect(
      sigc::mem_fun(*this, &GLRenderer::drawMap));
-  MapEditor::instance().m_current_map.signal_changed.connect(
+  MapEditor::instance().m_signal_map_selected.connect(
+     sigc::mem_fun(*this, &GLRenderer::drawMap));
+  //MapEditor::instance().m_signal_map_unselected.connect(
+  //   sigc::mem_fun(*this, &GLRenderer::clearScreen));
+  MapEditor::instance().m_signal_map_modified.connect(
      sigc::mem_fun(*this, &GLRenderer::drawMap));
 
   return true;

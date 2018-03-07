@@ -52,7 +52,7 @@ void Inspector::showEmpty()
 
 void Inspector::showCell(const Key nodeID)
 {
-  SimTaDynMapPtr map = MapEditor::instance().map();
+  SimTaDynMapPtr map = MapEditor::instance().getMap();
   if (nullptr == map)
     return ;
 

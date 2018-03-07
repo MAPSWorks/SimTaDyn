@@ -28,7 +28,7 @@
 class SimTaDynMap;
 
 // **************************************************************
-//! \brief
+//! \brief Display a node of a SceneGraph
 // **************************************************************
 class SceneGraphWindow : public Gtk::Window
 {

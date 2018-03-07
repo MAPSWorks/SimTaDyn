@@ -67,6 +67,8 @@ public:
   {
     // FXME: retirer m_full_path du PathManager
     LOGI("Deleting SimTaDynMap #%u named '%s'\n", getID(), m_name.c_str());
+
+    if (modified()) { LOGF("Not yet implemented"); } //FIXME
   }
 
   //! \brief Return the unique identifier.
@@ -82,7 +84,10 @@ public:
 
   void clear()
   {
-    // TODO
+    // TODO clear spreadsheets
+
+    //
+    m_signal_map_modified.emit(nullptr);
   }
 
   SimTaDynSheet* sheet()
@@ -93,9 +98,34 @@ public:
     return m_sheets.root()->mesh();
   }
 
+  #if 0
+  SimTaDynSheet* sheet(string const& sheet_name)
+  {
+    /* TODO
+    auto node = m_sheets.find(sheet_name);
+    if (nullptr == node)
+      return nullptr;
+
+    return node->mesh();*/
+    LOGF("Not yet implemented");
+    return nullptr;
+  }
+  #endif
+
   inline bool modified() const
   {
-    return (m_nb_graphs_modified > 0U) || (m_nb_scripts_modified > 0U);
+    /* TODO
+    if m_sheets.root().modified return true;
+    for (auto it: m_sheets)
+    {
+      if (it->modified()) return true;
+    }
+    for (auto it: m_scripts_forth)
+    {
+      if (it->modified()) return true;
+    }*/
+    LOGF("Not yet implemented");
+    return false;
   }
 
   void draw()
@@ -146,16 +176,17 @@ public:
   SceneGraph<SimTaDynSheet, float, 3U> m_sheets; // FIXME *m_sheets ???
 
   //! \brief List of Forth scripts.
-  std::vector<std::string> m_scripts_forth;
+  // FIXME: struct Doc {modified: bool, suppressed: bool } comme ca on peut supprimer doc le restaurer. Il ne sera pas mis dans le zip lors de la sauvegarde et definiteveme supprimer quand on quitte Sim
+  std::vector<std::string> m_scripts_forth; // A joindre dans PackageManager
 
   std::string               m_zip_path;
   std::string               m_base_dir;
   std::string               m_full_path;
 
-  uint32_t m_nb_graphs_modified = 0U;
-  uint32_t m_nb_scripts_modified = 0U;
-
-  sigc::signal<void, SimTaDynMapPtr> signal_changed;
+  // FIXME: signal shall be private and add a public getter
+  //! \brief Signal sending the newly effective map (currently edited).
+  //! to observer (like Renderer for forcing the map to be drawn).
+  sigc::signal<void, SimTaDynMapPtr> m_signal_map_modified;
 };
 
 #endif /* SIMTADYN_MAP_HPP_ */

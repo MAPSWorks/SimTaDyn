@@ -25,208 +25,187 @@
 #  include "SimTaDynLoaders.hpp"
 #  include "Inspector.hpp"
 #  include "DrawingArea.hpp"
-#  include "ToggleButtons.hpp"
-#  include "MapEditionTools.hpp"
-
-class LoaderManager;
-
-// *************************************************************************************************
-//! \brief A class holding the currently edited by SimTaDynMap. When
-//! the user changes of map, this class will notifies to observers that
-//! map changed.
-// ***********************************************************************************************
-class SimTaDynMapHolder
-{
-public:
-
-  SimTaDynMapHolder()
-  {
-  }
-
-  void set(SimTaDynMapPtr p)
-  {
-    m_map = p;
-    if (nullptr != m_map)
-      {
-        m_map->signal_changed.emit(m_map);
-        // TODO: notify to SimForth to get the address of the scenegraph<SimTaDynSheet>
-      }
-  }
-
-  SimTaDynMapPtr get(std::string const& name)
-  {
-    // The desired map is already currently used
-    if ((nullptr != m_map) && (m_map->name() == name))
-      return m_map;
-
-    // Get the desired map
-    SimTaDynMapPtr new_map = SimTaDynMapManager::instance().acquire(name);
-
-    // The desired map does not exist
-    if (nullptr == new_map)
-      {
-        if (nullptr == m_map)
-          {
-            LOGE("Cannot select SimTaDyn map #%s because there is no map to select",
-                 name.c_str());
-          }
-        else
-          {
-            LOGE("Cannot select SimTaDyn map #%s. Keep using the current map #%s",
-                 name.c_str(), m_map->name().c_str());
-          }
-      }
-    else // Found
-      {
-        m_map = new_map;
-        m_map->signal_changed.emit(m_map);
-      }
-
-    return m_map;
-  }
-
-  inline SimTaDynMapPtr get()
-  {
-    return m_map;
-  }
-
-public:
-
-  sigc::signal<void, SimTaDynMapPtr> signal_changed;
-
-protected:
-
-  SimTaDynMapPtr m_map;
-};
+#  include "MapEditorCommands.hpp"
+#  include "SimTaDynMapHolder.hpp"
 
 // *************************************************************************************************
 // This class implements a Controler pattern of the Model-View-Controler (MVC) design pattern.
 // *************************************************************************************************
 class MapEditor
-  : public Singleton<MapEditor>
+  : //private IEditor,
+    public Singleton<MapEditor>,
+    public MapEditorCommands,
+    public SimTaDynMapHolder
 {
-public:
-
-  //! \brief Add, remove a mode (node, arc, zone).
-  enum ActionType { Add, Remove, Select, Move, FirstAction = Add, LastAction = Move };
-
-  //! \brief On what kind of cells action is performed.
-  enum ActionOn { Node, Arc, Zone, FirstMode = Node, LastMode = Zone };
-
 private:
 
   friend class Singleton<MapEditor>;
 
+  //------------------------------------------------------------------
   //! \brief Private because of Singleton.
+  //------------------------------------------------------------------
   MapEditor();
 
+  //------------------------------------------------------------------
   //! \brief Private because of Singleton.
+  //------------------------------------------------------------------
   virtual ~MapEditor();
 
 public:
 
+  //------------------------------------------------------------------
+  //! \brief Return the widget to be attached to a GTK widget.
+  //------------------------------------------------------------------
   inline Gtk::Widget &widget()
   {
     return m_hbox;
   }
 
-  //! \brief Return the current map
-  inline SimTaDynMapPtr map()
-  {
-    return m_current_map.get();
-  }
-
+  //------------------------------------------------------------------
+  //! \brief Wrap SimTaDynMapHolder::use() and popup a dialog if
+  //! the map is not known.
+  //------------------------------------------------------------------
   inline SimTaDynMapPtr map(std::string const& name)
   {
-    return m_current_map.get(name);
+    if (nullptr == use(name))
+      {
+        Gtk::MessageDialog dialog(window(), "Not in ResourceManager", false, Gtk::MESSAGE_WARNING);
+        dialog.set_secondary_text("SimTaDyn map '" + name + "' Cannot be used as current SimTaDyn map");
+        dialog.run();
+      }
+
+    return getMap();
   }
 
-  //! \brief Load a new SimTaDyn map from a file through a dialog box.
+  //------------------------------------------------------------------
+  //! \brief Reset the map. Delete contents on spreadsheets.
+  //! FIXME all sheets or the just the current one ?
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
+  inline void clear()
+  {
+    SimTaDynMapPtr map = getMap();
+    if (nullptr != m_map)
+      {
+        m_map->clear();
+      }
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Load a new SimTaDyn map from a file. The file is choosen
+  //! through a dialog box.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
   inline bool open()
   {
     return dialogLoadMap(false, true);
   }
 
-  //! \brief Load a new map from a file.
+  //------------------------------------------------------------------
+  //! \brief Load a new map from the given file.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
   inline bool open(std::string const& filename)
   {
     return doOpen(filename, false, true);
   }
 
-  //! \brief Load a new map from a file through a dialog box.
-  inline bool import()
+  //------------------------------------------------------------------
+  //! \brief Close the current map, ask the user if he wants to save its
+  //! document and finaly set the previous map as current document (if
+  //! present).
+  //------------------------------------------------------------------
+  bool close();
+
+  //------------------------------------------------------------------
+  //! \brief Save the map in a desired file. The file is choosen
+  //! through a dialog box.
+  //------------------------------------------------------------------
+  inline bool saveAs()
   {
-    return dialogLoadMap(true, false);
+    SimTaDynMapPtr map = getMap();
+    if (nullptr == map)
+      return true;
+
+    return dialogSaveAsMap(map);
   }
 
-    //! \brief Load a new map from a file through a dialog box.
+  //------------------------------------------------------------------
+  //! \brief Save the current document. Depending on its state the
+  //! document is directly saved or a "Save As" dialog box is opened.
+  //------------------------------------------------------------------
+  bool save(const bool closing);
+
+  //------------------------------------------------------------------
+  //! \brief TODO
+  //------------------------------------------------------------------
+  //template<class T>
+  //inline bool export(SimTaDynMapPtr map)
+  //{
+  //  return dialogSaveAsMap<T>(map);
+  //}
+
+  //------------------------------------------------------------------
+  //! \brief Load a new map from a file through a dialog box.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
+  inline bool import()
+  {
+    return dialogLoadMap(true, false); // FIXME doit etre templater
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Load a new map from a file through a dialog box.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
   inline bool import(std::string const& filename)
   {
     return doOpen(filename, true, false);
   }
 
-  //! \brief Create a dummy map.
-  void newMap();
-
+  //------------------------------------------------------------------
   //! \brief Load a map from a file in the current map.
-  inline bool addMap()
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
+  inline bool addMap() // FIXME: addSheet
   {
     return dialogLoadMap(false, false);
   }
 
+  //------------------------------------------------------------------
   //! \brief Load a map from a file in the current map.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
   inline bool addMap(std::string const& filename)
   {
     return doOpen(filename, false, false);
   }
 
+  //------------------------------------------------------------------
   //! \brief Load a map and replace the current map.
-  inline bool replace()
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
+  inline bool replace() // FIXME: sheet or map ?
   {
     return dialogLoadMap(false, true);
   }
 
+  //------------------------------------------------------------------
   //! \brief Load a map and replace the current map.
+  //! \signal emit m_signal_map_changed<void, SimTaDynMapPtr>.
+  //------------------------------------------------------------------
   inline bool replace(std::string const& filename)
   {
     return doOpen(filename, false, true);
   }
 
-  //! \brief Reset the map (suppres everything)
-  inline void clear()
-  {
-    if (nullptr != m_current_map.get())
-      {
-        m_current_map.get()->clear();
-      }
-  }
-
-  void button1PressEvent(const gdouble x, const gdouble y)
-  {
-    LOGD("Bouton1 click %d %d", (int) x, (int) y);
-    m_edition_tools[actionType()]->exec1(x, y);
-  }
-
-  void button2PressEvent(const gdouble x, const gdouble y)
-  {
-    LOGD("Bouton2 click %d %d", (int) x, (int) y);
-    m_edition_tools[actionType()]->exec2(x, y);
-  }
-
-  void button3PressEvent(const gdouble x, const gdouble y)
-  {
-    LOGD("Bouton3 click %d %d", (int) x, (int) y);
-    m_edition_tools[actionType()]->exec3(x, y);
-  }
-
-  //! \brief Close the current map and activate the previous one (if
-  //! present)
-  void close();
-  void save() {} //TODO
-  void saveAs();
+  //------------------------------------------------------------------
+  //------------------------------------------------------------------
   bool exec();
 
-  //! \brief Attach a the MVC view to this MVC controller.
+  //------------------------------------------------------------------
+  //! FIXME \brief Attach a the MVC view to this MVC controller.
+  //------------------------------------------------------------------
   void attachView(GLDrawingArea& drawing_area)
   {
     m_drawing_area = &drawing_area;
@@ -234,39 +213,67 @@ public:
     m_vbox.pack_start(drawing_area);
   }
 
-  ActionType actionType() const
-  {
-    return static_cast<ActionType>(m_action_type.button());
-  }
-
-  ActionOn actionOn() const
-  {
-    return static_cast<ActionOn>(m_action_on.button());
-  }
-
 protected:
 
-  virtual bool load(const std::string& filename, SimTaDynMapPtr oldmap);
-  bool doOpen(std::string const& filename, const bool new_map, const bool reset_map);
+  //------------------------------------------------------------------
+  //! \brief Return the main window needed for gtk dialogs.
+  //------------------------------------------------------------------
+  inline Gtk::Window &window()
+  {
+    return (Gtk::Window&) *(widget().get_toplevel());
+  }
+
+  //------------------------------------------------------------------
+  //! \brief Open a folder chooser dialog for letting the user choosing
+  //! the file to be loaded.
+  //------------------------------------------------------------------
   bool dialogLoadMap(const bool new_map, const bool reset_map);
-  bool dialogSaveAsMap(const bool closing);
-  void onActionOnSelected_(const ActionOn id);
-  void onActionTypeSelected_(const ActionType id);
-  inline void onActionOnSelected(const uint32_t id)
-  {
-    onActionOnSelected_(static_cast<ActionOn>(id));
-  }
-  inline void onActionTypeSelected(const uint32_t id)
-  {
-    onActionTypeSelected_(static_cast<ActionType>(id));
-  }
+
+  //------------------------------------------------------------------
+  //! \brief Call the loader for loading a document.
+  //------------------------------------------------------------------
+  bool load(const std::string& filename, SimTaDynMapPtr oldmap);
+
+  //------------------------------------------------------------------
+  //! \brief Perform operations before and after calling load().
+  //------------------------------------------------------------------
+  bool doOpen(std::string const& filename, const bool new_map, const bool reset_map);
+
+  //------------------------------------------------------------------
+  //! \brief Call the loader for saving the document.
+  //------------------------------------------------------------------
+  bool doSave(std::string const& filename, SimTaDynMapPtr map);
+
+  //------------------------------------------------------------------
+  //! \brief Open a folder chooser dialog for letting the user choosing
+  //! the file path for saving its document.
+  //------------------------------------------------------------------
+  bool dialogSaveAsMap(SimTaDynMapPtr map);
+
+  //------------------------------------------------------------------
+  //! \brief Popup for asking the user if he wants to save its document.
+  //! \param closing set it to true when the user click on the close
+  //! button.
+  //------------------------------------------------------------------
+  bool popupAskForSaving(SimTaDynMapPtr map, const bool closing);
+
+  //------------------------------------------------------------------
+  //! \brief Create a dummy map and set it as current map.
+  //------------------------------------------------------------------
+  SimTaDynMapPtr create();
+
+  //------------------------------------------------------------------
+  //! \brief Add a map as resource in the ResourceManager
+  //------------------------------------------------------------------
   void add(const Key name, SimTaDynMapPtr map);
+
+  //------------------------------------------------------------------
+  //! \brief Remove a map as resource from the ResourceManager
+  //------------------------------------------------------------------
   void remove(const Key name);
 
 public:
 
-  //! \brief Current model of the MVC design pattern
-  SimTaDynMapHolder     m_current_map;
   //! \brief View implementation of the MVC
   GLDrawingArea         *m_drawing_area = nullptr;
   //!
@@ -279,9 +286,6 @@ public:
 
 protected:
 
-  Gtk::Toolbar           m_toolbar;
-  ToggleButtons          m_action_type;
-  ToggleButtons          m_action_on;
   Gtk::Menu              m_menu[simtadyn::MaxMapMenuNames + 1];
   Gtk::ImageMenuItem     m_submenu[8];
   Gtk::Image             m_image[8];
@@ -290,7 +294,6 @@ protected:
   Inspector              m_inspector;
   Gtk::VBox              m_vbox;
   Gtk::HBox              m_hbox;
-  MapEditionTools       *m_edition_tools[ActionType::LastAction + 1u];
 };
 
 #endif /* MAPEDITOR_HPP_ */
