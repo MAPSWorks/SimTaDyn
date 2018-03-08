@@ -29,7 +29,7 @@ P=.
 ###################################################
 # Sharable informations between all Makefiles
 M=$(P)/.makefile
--include $(M)/Makefile.header
+include $(M)/Makefile.header
 
 ###################################################
 # Debug mode or Release mode
@@ -122,7 +122,7 @@ OPTIM_FLAGS = -O3
 endif
 
 ###################################################
-#
+# Compile SimTaDyn project
 all: $(TARGET)
 
 ###################################################
@@ -227,7 +227,7 @@ uninstall:
 	@rm -r $(PROJECT_DATA_ROOT)
 
 ###################################################
-# Clean the build/ directory.
+# Clean the local build/ directory.
 .PHONY: clean
 clean:
 	@$(call print-simple,"Cleaning","$(PWD)")
@@ -247,5 +247,5 @@ veryclean: clean
 
 ###################################################
 # Sharable informations between all Makefiles
-include $(M)/Makefile.help
 include $(M)/Makefile.footer
+include $(M)/Makefile.help

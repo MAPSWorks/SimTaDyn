@@ -18,51 +18,119 @@
 // along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 //=====================================================================
 
+#include "Logger.hpp"
+#include "Resource.hpp"
 #include "ResourcesTests.hpp"
 #include "ClassCounter.tpp"
-#include <iostream>
-#include <fstream>
+#include "YesEngine/GenHierarchies.h"
+#include <string>
+
+using namespace Yes;
 
 // Register the test suite
 CPPUNIT_TEST_SUITE_REGISTRATION(ResourcesTests);
 
+// -----------------------------------------------------------
 static bool destroyedA = false;
-class ResourceA
-  : public IResource<uint32_t>,
-    private UniqueID<ResourceA>
-{
-public:
-
-  ResourceA()
-    : IResource(UniqueID<ResourceA>::getID())
-  {
-     LOGI("Created ResourceA %u", m_id);
-  }
-
-  ~ResourceA()
-  {
-     destroyedA = true;
-  }
-};
-
 static bool destroyedB = false;
-class ResourceB
-  : public IResource<std::string>,
-    private UniqueID<ResourceB>
+static bool loadedA = false;
+static bool loadedB = false;
+static bool savedA = false;
+static bool savedB = false;
+
+// -----------------------------------------------------------
+class ResourceA: public Resource, private UniqueID<ResourceA>
 {
 public:
 
-  ResourceB()
-    : IResource("BB_" + std::to_string(UniqueID<ResourceB>::getID()))
+  void type() { LOGI("ResourceA"); }
+  ResourceA() { LOGI("New ResourceA"); }
+  ~ResourceA() { destroyedA = true; LOGI("Bye ResourceA"); }
+};
+
+using ResourceAPtr = std::shared_ptr<ResourceA>;
+
+// -----------------------------------------------------------
+class ResourceB: public Resource, private UniqueID<ResourceB>
+{
+public:
+
+  void type() { LOGI("ResourceB"); }
+  ResourceB() { LOGI("New ResourceB"); }
+  ~ResourceB() { destroyedB = true; LOGI("Bye ResourceB"); }
+};
+
+using ResourceBPtr = std::shared_ptr<ResourceB>;
+
+// -----------------------------------------------------------
+typedef TYPELIST_2(ResourceA, ResourceB) ResourceList;
+
+#include "ResourceManager.tpp"
+
+using ResourceAManager = ResourceManager<ResourceA, int>;
+using ResourceBManager = ResourceManager<ResourceB, std::string>;
+
+#include "ILoader.tpp"
+
+// -----------------------------------------------------------
+class ResourceALoader : public ILoader<ResourceA>
+{
+public:
+
+  ResourceALoader()
+    : ILoader<ResourceA>("ResourceA")
   {
-     LOGI("Created ResourceB %s", m_id.c_str());
+    LOGI("Creating a ResourceA loader %p", this);
   }
 
-  ~ResourceB()
+  virtual void loadFromFile(std::string const& /*filename*/, ResourceAPtr& resource) override
   {
-     destroyedB = true;
+    loadedA = true;
+    std::cout << "ResourceA* loadFromFile(filename)" << std::endl;
+
+    if (nullptr == resource)
+      {
+        ResourceAManager& mgrA = ResourceAManager::instance();
+        ResourceAPtr r = mgrA.create();
+        mgrA.add(42, r);
+        assert(nullptr != r);
+        resource = std::static_pointer_cast<ResourceA>(r);
+        assert(nullptr != resource);
+      }
+  }
+
+  virtual void saveToFile(ResourceAPtr const /*resource*/, std::string const& /*filename*/) override
+  {
+    savedA = true;
+    std::cout << "void saveToFile(ResourceA)" << std::endl;
   }
 };
+
+// -----------------------------------------------------------
+class ResourceBLoader : public ILoader<ResourceB>
+{
+public:
+
+  ResourceBLoader()
+    : ILoader<ResourceB>("ResourceB")
+  {
+    LOGI("Creating a ResourceB loader %p", this);
+  }
+
+  virtual void loadFromFile(std::string const& /*filename*/, ResourceBPtr &/*resource*/) override
+  {
+    loadedB = true;
+    std::cout << "ResourceB* loadFromFile(filename)" << std::endl;
+  }
+
+  virtual void saveToFile(ResourceBPtr const /*resource*/, std::string const& /*filename*/) override
+  {
+    savedB = true;
+    std::cout << "void saveToFile(ResourceB)" << std::endl;
+  }
+};
+
+#include "LoaderManager.tpp"
 
 //--------------------------------------------------------------------------
 void ResourcesTests::setUp()
@@ -80,22 +148,22 @@ void ResourcesTests::testsResources()
   // -- Resource A
 
   CPPUNIT_ASSERT_EQUAL(false, destroyedA);
-  ResourceA *rA1 = new ResourceA();
-  CPPUNIT_ASSERT_EQUAL(0U, rA1->owners());
-  CPPUNIT_ASSERT_EQUAL(0U, rA1->id());
+  ResourceAPtr rA1 = ResourceAManager::instance().create();
+  CPPUNIT_ASSERT_EQUAL(0L, rA1.use_count());
+  CPPUNIT_ASSERT_EQUAL(0U, rA1->getID());
   CPPUNIT_ASSERT_EQUAL(false, destroyedA);
 
-  ResourceA *rA2 = new ResourceA();
-  CPPUNIT_ASSERT_EQUAL(0U, rA1->owners());
-  CPPUNIT_ASSERT_EQUAL(0U, rA2->owners());
-  CPPUNIT_ASSERT_EQUAL(1U, rA2->id());
+  ResourceAPtr rA2 = ResourceAManager::instance().create();
+  CPPUNIT_ASSERT_EQUAL(0L, rA1.use_count());
+  CPPUNIT_ASSERT_EQUAL(0L, rA2.use_count());
+  CPPUNIT_ASSERT_EQUAL(1U, rA2->getID());
   CPPUNIT_ASSERT_EQUAL(false, destroyedA);
 
   rA1->acquire();
-  CPPUNIT_ASSERT_EQUAL(1U, rA1->owners());
+  CPPUNIT_ASSERT_EQUAL(1L, rA1.use_count());
   CPPUNIT_ASSERT_EQUAL(false, destroyedA);
   rA1->dispose();
-  CPPUNIT_ASSERT_EQUAL(0U, rA1->owners());
+  CPPUNIT_ASSERT_EQUAL(0L, rA1.use_count());
   rA1->dispose();
   CPPUNIT_ASSERT_EQUAL(true, destroyedA);
   destroyedA = false;
@@ -105,22 +173,22 @@ void ResourcesTests::testsResources()
   // -- Resource B
 
   CPPUNIT_ASSERT_EQUAL(false, destroyedB);
-  ResourceB *rB1 = new ResourceB();
-  CPPUNIT_ASSERT_EQUAL(0U, rB1->owners());
-  CPPUNIT_ASSERT_EQUAL(0, rB1->id().compare("BB_0"));
+  ResourceBPtr rB1 = ResourceB::create();
+  CPPUNIT_ASSERT_EQUAL(0U, rB1->use_count());
+  CPPUNIT_ASSERT_EQUAL(0, rB1->getID().compare("BB_0"));
   CPPUNIT_ASSERT_EQUAL(false, destroyedB);
 
-  ResourceB *rB2 = new ResourceB();
-  CPPUNIT_ASSERT_EQUAL(0U, rB1->owners());
-  CPPUNIT_ASSERT_EQUAL(0U, rB2->owners());
-  CPPUNIT_ASSERT_EQUAL(0, rB2->id().compare("BB_1"));
+  ResourceBPtr rB2 = ResourceB::create();
+  CPPUNIT_ASSERT_EQUAL(0U, rB1->use_count());
+  CPPUNIT_ASSERT_EQUAL(0U, rB2->use_count());
+  CPPUNIT_ASSERT_EQUAL(0, rB2->getID().compare("BB_1"));
   CPPUNIT_ASSERT_EQUAL(false, destroyedB);
 
   rB1->acquire();
-  CPPUNIT_ASSERT_EQUAL(1U, rB1->owners());
+  CPPUNIT_ASSERT_EQUAL(1U, rB1->use_count());
   CPPUNIT_ASSERT_EQUAL(false, destroyedB);
   rB1->dispose();
-  CPPUNIT_ASSERT_EQUAL(0U, rB1->owners());
+  CPPUNIT_ASSERT_EQUAL(0U, rB1->use_count());
   rB1->dispose();
   CPPUNIT_ASSERT_EQUAL(true, destroyedB);
   destroyedB = false;
@@ -138,93 +206,50 @@ void ResourcesTests::testsResourceManager()
   CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.look(1U)); // Resource exists but not present in the manager
 
   // Insert 2 resources in the resource manager. Check they are inserted.
-  rm.add(new ResourceA()); // --> id #2U
-  rm.add(new ResourceA()); // --> id #3U
+  rm.add(ResourceAManagerA::create()); // --> getID #2U
+  rm.add(ResourceAManagerA::create()); // --> getID #3U
   CPPUNIT_ASSERT_EQUAL(2U, rm.size());
   CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.look(2U));
   CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.look(3U));
   CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.look(4U));
 
   // Insert 3th resource and acquire it. Check acquisition.
-  rm.add(new ResourceA());
-  uint32_t id = 4U;
+  rm.add(ResourceAManagerA::create());
+  uint32_t getID = 4U;
   CPPUNIT_ASSERT_EQUAL(3U, rm.size());
-  CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.acquire(id));
-  CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.acquire(id + 1U));
-  CPPUNIT_ASSERT_EQUAL(1U, ((ResourceA*) rm.look(id))->owners());
+  CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.acquire(getID));
+  CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.acquire(getID + 1U));
+  CPPUNIT_ASSERT_EQUAL(1U, ((ResourceA*) rm.look(getID))->use_count());
 
   // Check disposing of the resource already acquired.
-  rm.dispose(id);
-  CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.acquire(id));
-  CPPUNIT_ASSERT_EQUAL(1U, ((ResourceA*) rm.look(id))->owners());
-  rm.dispose(id);
-  CPPUNIT_ASSERT_EQUAL(0U, ((ResourceA*) rm.look(id))->owners());
+  rm.dispose(getID);
+  CPPUNIT_ASSERT_EQUAL(true, nullptr != rm.acquire(getID));
+  CPPUNIT_ASSERT_EQUAL(1U, ((ResourceA*) rm.look(getID))->use_count());
+  rm.dispose(getID);
+  CPPUNIT_ASSERT_EQUAL(0U, ((ResourceA*) rm.look(getID))->use_count());
 
   // Dispose the resource and check it's no longer exists.
-  rm.dispose(id);
-  CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.acquire(id));
+  rm.dispose(getID);
+  CPPUNIT_ASSERT_EQUAL(true, nullptr == rm.acquire(getID));
   CPPUNIT_ASSERT_EQUAL(2U, rm.size());
 }
-
-static bool loadedA = false;
-static bool loadedB = false;
-static bool savedA = false;
-static bool savedB = false;
-
-class LoaderA: public ILoader<ResourceA>
-{
-public:
-  LoaderA() : ILoader<ResourceA>("Loader ResourceA") {};
-  ~LoaderA() {};
-  virtual void loadFromFile(std::string const& /*filename*/, ResourceA* &object) override
-  {
-    loadedA = true;
-    std::cout << "ResourceA* loadFromFile(std::string const& filename)" << std::endl;
-    object = new ResourceA();
-  }
-  virtual void saveToFile(ResourceA const& /*object*/, std::string const& /*filename*/) override
-  {
-    savedA = true;
-    std::cout << "void saveToFile(ResourceA const& /*object*/, std::string const& filename)" << std::endl;
-  }
-};
-
-class LoaderB: public ILoader<ResourceB>
-{
-public:
-  LoaderB() : ILoader<ResourceB>("Loader ResourceB") {};
-  ~LoaderB() {};
-  virtual void loadFromFile(std::string const& /*filename*/, ResourceB* &object) override
-  {
-    loadedB = true;
-    std::cout << "ResourceB* loadFromFile(std::string const& filename)" << std::endl;
-    object = new ResourceB();
-  }
-virtual void saveToFile(ResourceB const& /*object*/, std::string const& /*filename*/) override
-  {
-    savedB = true;
-    std::cout << "void saveToFile(ResourceB const& /*object*/, std::string const& filename)" << std::endl;
-  }
-};
-
-#  include "Utilities/GenHierarchies.h"
-
-typedef TYPELIST_2(ResourceA, ResourceB) ResourceList;
-
-#  include "LoaderManager.tpp"
 
 //--------------------------------------------------------------------------
 void ResourcesTests::testsLoaderManager()
 {
   LoaderManager &lm = LoaderManager::instance();
-  lm.registerLoader(new LoaderA(), "a:A:aa::AA");
-  lm.registerLoader(new LoaderB(), "bb");
+  lm.registerLoader<ResourceA>(std::make_shared<LoaderA>(), "a:A:aa::AA");
+  lm.registerLoader<ResourceB>(std::make_shared<LoaderB>(), "bb");
   CPPUNIT_ASSERT_EQUAL(true, lm.hasLoader<ResourceA>("a"));
   CPPUNIT_ASSERT_EQUAL(true, lm.hasLoader<ResourceA>("A"));
   CPPUNIT_ASSERT_EQUAL(true, lm.hasLoader<ResourceA>("aa"));
   CPPUNIT_ASSERT_EQUAL(true, lm.hasLoader<ResourceA>("AA"));
   CPPUNIT_ASSERT_EQUAL(true, lm.hasLoader<ResourceB>("bb"));
   CPPUNIT_ASSERT_EQUAL(false, lm.hasLoader<ResourceA>("cc"));
+  CPPUNIT_ASSERT_EQUAL(false, lm.hasLoader<ResourceB>("bb"));
+
+  CPPUNIT_ASSERT_EQUAL(1u, lm.getLoader<ResourceB>("bb").use_count());
+  CPPUNIT_ASSERT_EQUAL(4u, lm.getLoader<ResourceA>("a").use_count());
 
   CPPUNIT_ASSERT_EQUAL(false, loadedA);
   CPPUNIT_ASSERT_EQUAL(false, loadedB);
@@ -237,7 +262,7 @@ void ResourcesTests::testsLoaderManager()
   CPPUNIT_ASSERT_EQUAL(true, savedA);
 
   std::cout << "2-----------------------------------------" << std::endl;
-  ResourceA *rA1 = nullptr;
+  ResourceAPtr rA1 = nullptr;
   CPPUNIT_ASSERT_THROW(lm.loadFromFile("/home/tutu.a", rA1), LoaderException);
   CPPUNIT_ASSERT_EQUAL(true, nullptr == rA1); // the file does not exist
   CPPUNIT_ASSERT_EQUAL(false, loadedA);
@@ -254,7 +279,7 @@ void ResourcesTests::testsLoaderManager()
   ResourceB rB;
   lm.saveToFile(rB, "/home/toto.AA.bb");
   CPPUNIT_ASSERT_EQUAL(true, savedB);
-  ResourceB *rB1;
+  ResourceBPtr rB1;
   { std::fstream fs; fs.open("/tmp/tutu.bb", std::ios::out); fs.close(); } // create a file
   lm.loadFromFile("/tmp/tutu.bb", rB1);
   CPPUNIT_ASSERT_EQUAL(true, loadedB);

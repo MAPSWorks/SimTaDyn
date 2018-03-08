@@ -199,6 +199,20 @@ protected:
       }
     return *(it->second);
   }
+
+  //------------------------------------------------------------------
+  //! \brief Return the number of file managed.
+  //------------------------------------------------------------------
+  template <class R>
+  inline uint32_t getNumberOfFileManaged(std::string const& extension) const
+  {
+    auto it = LoaderHolder<R>::m_loaders.find(extension);
+    if (!((it != LoaderHolder<R>::m_loaders.end()) && it->second))
+      {
+        return 0u;
+      }
+    return it->second->use_count();
+  }
 };
 
 #endif /* LOADER_MANAGER_TPP_ */

@@ -91,17 +91,9 @@ public:
 
 public:
 
-  std::shared_ptr<R>
-  create(const T& id, const bool force = true)
+  std::shared_ptr<R> create()
   {
-    ResourcePtr r = Resource::create<R>();
-    if (true == add(id, r, force))
-      {
-        LOGI("Added");
-        return std::static_pointer_cast<R>(r);
-      }
-    LOGI("nop");
-    return nullptr;
+    return Resource::create<R>();
   }
 
   //------------------------------------------------------------------

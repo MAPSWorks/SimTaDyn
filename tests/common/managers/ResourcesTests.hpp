@@ -28,7 +28,7 @@
 #define protected public
 #define private public
 #include "ResourceManager.tpp"
-#include "ILoader.hpp"
+#include "ILoader.tpp"
 #undef protected
 #undef private
 

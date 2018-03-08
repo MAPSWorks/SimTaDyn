@@ -4,7 +4,7 @@
 # https://github.com/ianstormtaylor/makefile-help
 
 ###################################################
-# Show this help.
+# Show this help (auto generated).
 help:
 	@echo
 	@echo '  Usage:'

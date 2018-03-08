@@ -29,7 +29,7 @@ P=..
 ###################################################
 # Sharable informations between all Makefiles
 M=$(P)/.makefile
--include $(M)/Makefile.header
+include $(M)/Makefile.header
 
 ###################################################
 # List of files to compile.
@@ -69,9 +69,12 @@ CXXFLAGS = -W -Wall -Wextra -std=c++11 `pkg-config --cflags gtkmm-3.0 gtksourcev
 LDFLAGS = `pkg-config --libs gtkmm-3.0 gtksourceviewmm-3.0` -lcppunit
 
 ###################################################
-#
-INCLUDES += -Icommon/containers -Icommon/graphics -Icommon/graph-theory -Icommon/managers -Icommon/maths -Icommon/utils \
--Icore/loaders
+# Include tests paths
+INCLUDES += \
+	-Icommon/containers -Icommon/graphics \
+	-Icommon/graph-theory -Icommon/managers \
+	-Icommon/maths -Icommon/utils -Icore/loaders
+
 VPATH += common/containers:\
 common/graphics:\
 common/graph-theory:\
@@ -113,8 +116,10 @@ else
 #$(error Unknown architecture)
 endif
 
-# if inside Docker with Travis-CI, OpenGL context cannot be created.
-# So disable some tests.
+###################################################
+# FIXME If tests are launched from Travis-CI, the
+# OpenGL context cannot be created. So for the moment
+# these tests are disable.
 ifeq ($(CI),true)
 TU_OPTIONS=-a
 endif
@@ -128,21 +133,20 @@ LDFLAGS += --coverage
 ###################################################
 # Address sanitizer. Comment these lines if asan is
 # not desired.
-
 # FIXME: clang on Travis-CI bugs during linking (infinite loop).
 # FIXME: g++ on Tracis-CI I have a segfault and trace are not human
 # readable. Temporary disable asan with Travis
-
-# ifeq ($(CXX),g++)
+# FIXME ifeq ($(CXX),g++)
 ifneq ($(CI),true)
 OPTIM_FLAGS = -O1 -g
 CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
 LDFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
 LIBS += -static-libstdc++ -static-libasan
-SANITIZER := ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=$(shell which llvm-symbolizer)
+SANITIZER = ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=$(shell which llvm-symbolizer)
 endif
 
 ###################################################
+# Compile SimTaDyn unit tests
 all: $(TARGET)
 
 ###################################################
@@ -152,20 +156,21 @@ $(TARGET): $(OBJ)
 	@cd $(BUILD) && $(CXX) $(OBJ) -o $(TARGET) $(LIBS) $(LDFLAGS)
 
 ###################################################
-# Compile sources
+# Compile unit test sources
 %.o: %.cpp $(BUILD)/%.d Makefile $(M)/Makefile.header $(M)/Makefile.footer version.h
 	@$(call print-from,"Compiling C++","$(TARGET)","$<")
 	@$(CXX) $(DEPFLAGS) $(CXXFLAGS) $(DEFINES) $(OPTIM_FLAGS) $(INCLUDES) -c $(abspath $<) -o $(abspath $(BUILD)/$@)
 	@$(POSTCOMPILE)
 
 ###################################################
-# Run unit tests.
+# Compile an run unit tests with address sanitizer (if present).
 .PHONY: unit-tests
 unit-tests: $(TARGET)
 	@$(call print-to,"Running","$(TARGET)","$(RAPPORT)","")
 	$(SANITIZER) ./build/$(TARGET) $(TU_OPTIONS) || (cat SimTaDyn.log; return 1)
 
 ###################################################
+# Clean the local build/ directory.
 .PHONY: clean
 clean:
 	@$(call print-simple,"Cleaning","$(PWD)")
@@ -173,4 +178,5 @@ clean:
 
 ###################################################
 # Sharable informations between all Makefiles
--include $(M)/Makefile.footer
+include $(M)/Makefile.footer
+include $(M)/Makefile.help
