@@ -36,9 +36,11 @@ int main()
   ClassicSpreadSheet sheet("Sheet1");
 
   forth.boot();
-  sheet.readInput("examples/input1.txt");
+  if (!sheet.readInput("examples/input2.txt"))
+    {
+      std::cerr << "Abort" << std::endl;
+    }
 
-  LOGI("-----");
   sheet.parse(forth);
   std::pair<bool, std::string> res = sheet.evaluate(forth);
   forth.ok(res);

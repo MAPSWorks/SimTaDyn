@@ -26,6 +26,7 @@ TARGET = $(PROJECT)-UnitTest
 ###################################################
 # Location from the project root directory.
 P=..
+ABSP=$(abspath $(P))
 
 ###################################################
 # Sharable informations between all Makefiles
@@ -36,36 +37,35 @@ include $(M)/Makefile.header
 # List of files to compile.
 OBJ_EXTERNAL       = backward.o
 OBJ_UTILS          = Exception.o ILogger.o Logger.o File.o Path.o
-OBJ_UTILS_UT      += LoggerTests.o FileTests.o
-OBJ_MATHS          = Maths.o
-OBJ_MATHS_UT       = VectorTests.o MatrixTests.o TransformationTests.o
-OBJ_MATHS_UT      += BoundingBoxTests.o FilteringTests.o
-OBJ_CONTAINERS     = PendingData.o
-OBJ_CONTAINERS_UT  = SetTests.o CollectionTests.o
-OBJ_MANAGERS       =
-OBJ_MANAGERS_UT    = ResourcesTests.o
+OBJ_UTILS_UT       = StrongTypeTests.o FileTests.o PathTests.o LoggerTests.o
+#OBJ_MATHS          = Maths.o
+#OBJ_MATHS_UT       = VectorTests.o MatrixTests.o TransformationTests.o
+#OBJ_MATHS_UT      += BoundingBoxTests.o FilteringTests.o
+#OBJ_CONTAINERS     = PendingData.o
+#OBJ_CONTAINERS_UT  = SetTests.o CollectionTests.o
+#OBJ_MANAGERS       =
+#OBJ_MANAGERS_UT    = ResourcesTests.o
 OBJ_GRAPHS         = Graph.o GraphAlgorithm.o
 #OBJ_GRAPHS_UT     += BasicArcTests.o BasicNodeTests.o BasicGraphTests.o GraphAlgoTests.o
-OBJ_OPENGL         = Color.o Camera2D.o OpenGLException.o OpenGL.o GLObject.o GLShader.o GLVertexArray.o
-OBJ_OPENGL        += GLVertexBuffer.o GLAttrib.o GLTextures.o GLWindow.o Renderer.o
-OBJ_OPENGL_UT      = ColorTests.o GLBufferTests.o OpenGLTests.o
+#OBJ_OPENGL         = Color.o Camera2D.o OpenGLException.o OpenGL.o GLObject.o GLShader.o GLVertexArray.o
+#OBJ_OPENGL        += GLVertexBuffer.o GLAttrib.o GLTextures.o GLWindow.o Renderer.o
+#OBJ_OPENGL_UT      = ColorTests.o GLBufferTests.o OpenGLTests.o
 OBJ_FORTH          = ForthExceptions.o ForthStream.o ForthDictionary.o ForthPrimitives.o Forth.o
-OBJ_CORE           = ASpreadSheetCell.o ASpreadSheet.o SimTaDynForth.o SimTaDynSheet.o SimTaDynMap.o
-OBJ_LOADERS        = LoaderException.o ILoader.o ShapeFileLoader.o SimTaDynFileLoader.o
-OBJ_LOADERS_UT     = SimTaDynFileLoaderTests.o
-OBJ_GUI            = Redirection.o PackageExplorer.o TextEditor.o ForthEditor.o
-OBJ_GUI           += Inspector.o MapEditor.o DrawingArea.o SimTaDynWindow.o
+OBJ_FORTH_UT       =
+OBJ_CORE           = SimTaDynForth.o ASpreadSheetCell.o ASpreadSheet.o
+#OBJ_CORE          += SimTaDynSheet.o SimTaDynMap.o
+OBJ_CORE_UT        = ClassicSpreadSheet.o SpreadSheetTests.o
+#OBJ_LOADERS        = LoaderException.o ILoader.o ShapeFileLoader.o SimTaDynFileLoader.o
+#OBJ_LOADERS_UT     = SimTaDynFileLoaderTests.o
+#OBJ_GUI            = Redirection.o PackageExplorer.o TextEditor.o ForthEditor.o
+#OBJ_GUI           += Inspector.o MapEditor.o DrawingArea.o SimTaDynWindow.o
 OBJ_UNIT_TEST      = main.o
-OBJ = $(OBJ_EXTERNAL) $(OBJ_UTILS) $(OBJ_UTILS_UT) $(OBJ_MATHS)		\
-      $(OBJ_MATHS_UT) $(OBJ_CONTAINERS) $(OBJ_CONTAINERS_UT)		\
-      $(OBJ_MANAGERS) $(OBJ_MANAGERS_UT) $(OBJ_GRAPHS)			\
-      $(OBJ_GRAPHS_UT) $(OBJ_OPENGL) $(OBJ_OPENGL_UT) $(OBJ_FORTH)	\
-      $(OBJ_CORE) $(OBJ_LOADERS) $(OBJ_LOADERS_UT) $(OBJ_GUI)		\
-      $(OBJ_UNIT_TEST)
-
-OBJ = ILogger.o Logger.o File.o Path.o PathTests.o FileTests.o \
-StrongTypeTests.o LoggerTests.o \
-main.o
+OBJ = $(OBJ_EXTERNAL) $(OBJ_UTILS) $(OBJ_UTILS_UT) $(OBJ_MATHS)	   \
+      $(OBJ_MATHS_UT) $(OBJ_CONTAINERS) $(OBJ_CONTAINERS_UT)	   \
+      $(OBJ_MANAGERS) $(OBJ_MANAGERS_UT) $(OBJ_GRAPHS)		   \
+      $(OBJ_GRAPHS_UT) $(OBJ_OPENGL) $(OBJ_OPENGL_UT) $(OBJ_FORTH) \
+      $(OBJ_CORE) $(OBJ_CORE_UT) $(OBJ_LOADERS) $(OBJ_LOADERS_UT)  \
+      $(OBJ_GUI) $(OBJ_UNIT_TEST)
 
 ###################################################
 # Compilation options.
@@ -75,19 +75,21 @@ LDFLAGS = `pkg-config --libs gtkmm-3.0 gtksourceviewmm-3.0` -lcppunit
 
 ###################################################
 #
-INCLUDES += -Icommon/containers -Icommon/graphics -Icommon/graph-theory -Icommon/managers -Icommon/maths -Icommon/utils \
--Icore/loaders
+INCLUDES += -Icommon/containers -Icommon/graphics -Icommon/graph-theory -Icommon/managers -Icommon/maths -Icommon/utils -Icore/loaders -Icore/spreadsheet -I../src/core/standalone/ClassicSpreadSheet
+
 VPATH += common/containers:\
 common/graphics:\
 common/graph-theory:\
 common/managers:\
 common/maths:\
 common/utils:\
-core/loaders
+core/loaders:\
+core/spreadsheet:\
+../src/core/standalone/ClassicSpreadSheet
 
 ###################################################
 # Common defines
-DEFINES += -DCHECK_OPENGL -DGTK_SOURCE_H_INSIDE -DGTK_SOURCE_COMPILATION
+DEFINES = -DCHECK_OPENGL -DGTK_SOURCE_H_INSIDE -DGTK_SOURCE_COMPILATION -DPROJECT_TEMP_DIR=\"/tmp/$(TARGET)/\" -DPROJECT_DATA_PATH=\"$(ABSP):$(PROJECT_DATA_PATH)\"
 
 ###################################################
 # Set Libraries compiled in the external/ directory.

@@ -49,8 +49,8 @@ void SimTaDynContext::init(cli::Parser& parser)
   if (res.first)
     {
       //sheet->displayResult();
-      std::cout << n0.value() << std::endl;
-      std::cout << n1.value() << std::endl;
+      std::cout << n0.rawValue() << std::endl;
+      std::cout << n1.rawValue() << std::endl;
     }
 }
 

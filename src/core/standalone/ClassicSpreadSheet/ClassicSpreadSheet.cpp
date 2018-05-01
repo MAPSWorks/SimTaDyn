@@ -110,9 +110,15 @@ ASpreadSheetCell* ClassicSpreadSheet::addCell(const uint32_t row,
   return node;
 }
 
-void ClassicSpreadSheet::readInput(std::string const filename)
+bool ClassicSpreadSheet::readInput(std::string const filename)
 {
   std::ifstream infile(filename);
+  if (infile.fail())
+    {
+      std::cerr << "Failed opening the file '" << filename
+                << "'" << std::endl;
+      return false;
+    }
   std::string line;
 
   // Get spreadsheet dimension array
@@ -133,10 +139,20 @@ void ClassicSpreadSheet::readInput(std::string const filename)
     {
       for (uint32_t col = 0; col < m_col; ++col)
         {
-          std::getline(infile, line);
+          try
+            {
+              std::getline(infile, line);
+            }
+          catch (std::exception const& e)
+            {
+              std::cerr << "Failed reading the file '" << filename
+                        << "'" << std::endl;
+              return false;
+            }
           addCell(row, col, line); //si cellule pas trouvee => a parser plus tard
         }
     }
+  return true;
 }
 
 void ClassicSpreadSheet::displayResult()
@@ -146,7 +162,7 @@ void ClassicSpreadSheet::displayResult()
     {
       for (uint32_t col = 0; col < m_col; ++col)
         {
-          std::cout << m_cellMatrix[row][col]->value() << "  ";
+          std::cout << m_cellMatrix[row][col]->rawValue() << "  ";
         }
       std::cout << std::endl;
     }
