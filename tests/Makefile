@@ -20,7 +20,8 @@
 
 ###################################################
 # Executable name
-TARGET = SimTaDyn-UnitTest
+PROJECT = SimTaDyn
+TARGET = $(PROJECT)-UnitTest
 
 ###################################################
 # Location from the project root directory.
@@ -86,8 +87,7 @@ core/loaders
 
 ###################################################
 # Common defines
-SIMTADYN_DEFINES=-DCHECK_OPENGL -DSIMTADYN_TEMP_DIR=\"/tmp/SimTaDyn/\" -DSIMTADYN_DATA_PATH=\"$(PROJECT_DATA_PATH)\"
-DEFINES += $(SIMTADYN_DEFINES) -DGTK_SOURCE_H_INSIDE -DGTK_SOURCE_COMPILATION
+DEFINES += -DCHECK_OPENGL -DGTK_SOURCE_H_INSIDE -DGTK_SOURCE_COMPILATION
 
 ###################################################
 # Set Libraries compiled in the external/ directory.

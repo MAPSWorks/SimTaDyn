@@ -23,6 +23,7 @@
 
 #  include "Singleton.tpp"
 #  include "Path.hpp"
+#  include "File.hpp"
 #  include "version.h"
 
 // **************************************************************
@@ -44,7 +45,7 @@ private:
   //------------------------------------------------------------------
   Config()
   {
-    add(SIMTADYN_DATA_PATH);
+    add(PROJECT_DATA_PATH);
   }
 
   //------------------------------------------------------------------
@@ -57,20 +58,36 @@ private:
 namespace config
 {
   //! \brief
-  const char project_name[] = "SimForth";
-  //! \brief Major version of SimForth
-  const uint32_t major_version = SIMTADYN_MAJOR_VERSION;
-  //! \brief Minor version of SimForth
-  const uint32_t minor_version = SIMTADYN_MINOR_VERSION;
+  enum Mode { Debug, Release };
+
   //! \brief
-  const char data_path[] = SIMTADYN_DATA_PATH;
+  static const Mode mode = config::Debug;
+  //! \brief Either create a new log file or smash the older log.
+  static const bool separated_logs = false;
+  //! \brief Used for logs and GUI.
+  static const std::string project_name("SimForth");
+  //! \brief Major version of project
+  static const uint32_t major_version(PROJECT_MAJOR_VERSION);
+  //! \brief Minor version of project
+  static const uint32_t minor_version(PROJECT_MINOR_VERSION);
+  //! \brief Save the git SHA1
+  static const std::string git_sha1(PROJECT_SHA1);
+  //! \brief Save the git branch
+  static const std::string git_branch(PROJECT_BRANCH);
+  //! \brief Pathes where default project resources have been installed
+  //! (when called  by the shell command: sudo make install).
+  static const std::string data_path(PROJECT_DATA_PATH);
   //! \brief Location for storing temporary files
-  const char tmp_path[] = "/tmp/SimForth/";
-  //! \brief
-  const char log_path[] = "SimForth.log";
+  static const std::string tmp_path(false == separated_logs ?
+                                    PROJECT_TEMP_DIR :
+                                    File::generateTempFileName(PROJECT_TEMP_DIR, "/"));
+  //! \brief Give a name to the default project log file.
+  static const std::string log_name(project_name + ".log");
+  //! \brief Define the full path for the project.
+  static const std::string log_path(tmp_path + log_name);
   //! \brief Number of elements by pool in containers
   //! used for storing nodes and arcs in a graph
-  const uint32_t graph_container_nb_elements = 8U;
+  static const uint32_t graph_container_nb_elements(8U);
 }
 
 #endif /* CONFIG_HPP_ */

@@ -1,6 +1,6 @@
 //=====================================================================
 // SimTaDyn: A GIS in a spreadsheet.
-// Copyright 2017 Quentin Quadrat <lecrapouille@gmail.com>
+// Copyright 2018 Quentin Quadrat <lecrapouille@gmail.com>
 //
 // This file is part of SimTaDyn.
 //
@@ -19,7 +19,6 @@
 //=====================================================================
 
 #include "ClassicSpreadSheet.hpp"
-#include "PathManager.hpp"
 #include <sstream>
 #include <string>
 
@@ -151,26 +150,4 @@ void ClassicSpreadSheet::displayResult()
         }
       std::cout << std::endl;
     }
-}
-
-int main()
-{
-  PathManager::instance();
-
-  SimForth& forth = SimForth::instance();
-  ClassicSpreadSheet sheet("Sheet1");
-
-  forth.boot();
-  sheet.readInput("examples/input1.txt");
-
-  LOGI("-----");
-  sheet.parse(forth);
-  std::pair<bool, std::string> res = sheet.evaluate(forth);
-  forth.ok(res);
-  if (res.first)
-    {
-      sheet.displayResult();
-    }
-
-  return 0;
 }
