@@ -29,7 +29,7 @@ P=..
 ###################################################
 # Sharable informations between all Makefiles
 M=$(P)/.makefile
--include $(M)/Makefile.header
+include $(M)/Makefile.header
 
 ###################################################
 # List of files to compile.
@@ -61,6 +61,10 @@ OBJ = $(OBJ_EXTERNAL) $(OBJ_UTILS) $(OBJ_UTILS_UT) $(OBJ_MATHS)		\
       $(OBJ_GRAPHS_UT) $(OBJ_OPENGL) $(OBJ_OPENGL_UT) $(OBJ_FORTH)	\
       $(OBJ_CORE) $(OBJ_LOADERS) $(OBJ_LOADERS_UT) $(OBJ_GUI)		\
       $(OBJ_UNIT_TEST)
+
+OBJ = ILogger.o Logger.o File.o Path.o PathTests.o FileTests.o \
+StrongTypeTests.o LoggerTests.o \
+main.o
 
 ###################################################
 # Compilation options.
@@ -119,6 +123,9 @@ ifeq ($(CI),true)
 TU_OPTIONS=-a
 endif
 
+# crpcut
+LIBS += -lcrpcut
+
 ###################################################
 # Code coverage. Comment these lines if coveraging
 # is not desired.
@@ -134,13 +141,13 @@ LDFLAGS += --coverage
 # readable. Temporary disable asan with Travis
 
 # ifeq ($(CXX),g++)
-ifneq ($(CI),true)
-OPTIM_FLAGS = -O1 -g
-CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
-LDFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
-LIBS += -static-libstdc++ -static-libasan
-SANITIZER := ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=$(shell which llvm-symbolizer)
-endif
+#ifneq ($(CI),true)
+#OPTIM_FLAGS = -O1 -g
+#CXXFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
+#LDFLAGS += -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls
+#LIBS += -static-libstdc++ -static-libasan
+#SANITIZER := ASAN_OPTIONS=symbolize=1 ASAN_SYMBOLIZER_PATH=$(shell which llvm-symbolizer)
+#endif
 
 ###################################################
 all: $(TARGET)

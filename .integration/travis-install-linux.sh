@@ -12,6 +12,6 @@ apt-get install -y libgtksourceviewmm-3.0-dev freeglut3 freeglut3-dev mesa-commo
 apt-get install -y libcppunit-dev libglm-dev llvm-4.0-tools
 ln -s /usr/bin/llvm-symbolizer-4.0 /usr/bin/llvm-symbolizer
 
-# coveralls dependencies
+# Coveralls dependencies
 apt-get install -y gcovr lcov ruby-dev
 gem install coveralls-lcov

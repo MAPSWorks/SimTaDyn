@@ -1,6 +1,6 @@
 //=====================================================================
 // SimTaDyn: A GIS in a spreadsheet.
-// Copyright 2017 Quentin Quadrat <lecrapouille@gmail.com>
+// Copyright 2018 Quentin Quadrat <lecrapouille@gmail.com>
 //
 // This file is part of SimTaDyn.
 //
@@ -18,104 +18,88 @@
 // along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 //=====================================================================
 
-#include "FileTests.hpp"
+#define protected public
+#define private public
+#include "File.hpp"
+#undef protected
+#undef private
 
-// Register the test suite
-CPPUNIT_TEST_SUITE_REGISTRATION(FileTests);
+#include <crpcut.hpp>
 
-//--------------------------------------------------------------------------
-void FileTests::setUp()
+TESTSUITE(FileClass)
 {
-}
+  TEST(BasicTests)
+  {
+    std::string res;
 
-//--------------------------------------------------------------------------
-void FileTests::tearDown()
-{
-}
+    res = File::fileName("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
+    ASSERT_TRUE("FileTests.cpp" == res);
 
-//--------------------------------------------------------------------------
-void FileTests::testfiles()
-{
-  std::string res;
+    res = File::fileName("/home/qq/SimTaDyn/tests/common");
+    ASSERT_TRUE("common" == res);
 
-  res = File::fileName("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
-  CPPUNIT_ASSERT_EQUAL(true, "FileTests.cpp" == res);
+    res = File::fileName("common");
+    ASSERT_TRUE("common" == res);
 
-  res = File::fileName("/home/qq/SimTaDyn/tests/common");
-  CPPUNIT_ASSERT_EQUAL(true, "common" == res);
+    res = File::baseName("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
+    ASSERT_TRUE("FileTests" == res);
 
-  res = File::fileName("common");
-  CPPUNIT_ASSERT_EQUAL(true, "common" == res);
+    res = File::baseName("/home/qq/SimTaDyn/tests/common");
+    ASSERT_TRUE("common" == res);
 
-  res = File::baseName("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
-  CPPUNIT_ASSERT_EQUAL(true, "FileTests" == res);
+    res = File::baseName("common");
+    ASSERT_TRUE("common" == res);
 
-  res = File::baseName("/home/qq/SimTaDyn/tests/common");
-  CPPUNIT_ASSERT_EQUAL(true, "common" == res);
+    res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
+    ASSERT_TRUE("cpp" == res);
 
-  res = File::baseName("common");
-  CPPUNIT_ASSERT_EQUAL(true, "common" == res);
+    res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp~");
+    ASSERT_TRUE("cpp" == res);
 
-  res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp");
-  CPPUNIT_ASSERT_EQUAL(true, "cpp" == res);
+    res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp.hpp");
+    ASSERT_TRUE("hpp" == res);
 
-  res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp~");
-  CPPUNIT_ASSERT_EQUAL(true, "cpp" == res);
+    res = File::extension("/home/qq/SimTaDyn/tests/common");
+    ASSERT_TRUE("" == res);
 
-  res = File::extension("/home/qq/SimTaDyn/tests/common/FileTests.cpp.hpp");
-  CPPUNIT_ASSERT_EQUAL(true, "hpp" == res);
+    res = File::extension("common");
+    ASSERT_TRUE("" == res);
 
-  res = File::extension("/home/qq/SimTaDyn/tests/common");
-  CPPUNIT_ASSERT_EQUAL(true, "" == res);
+    ASSERT_FALSE(File::exist("pouet"));
+    ASSERT_TRUE(File::exist("/dev/null"));
 
-  res = File::extension("common");
-  CPPUNIT_ASSERT_EQUAL(true, "" == res);
+    ASSERT_TRUE(File::Directory == File::type("/tmp"));
+    ASSERT_TRUE(File::isReadable("/tmp"));
+    ASSERT_TRUE(File::isWritable("/tmp"));
 
-  CPPUNIT_ASSERT_EQUAL(false, File::exist("pouet"));
-  CPPUNIT_ASSERT_EQUAL(true, File::exist("/dev/null"));
+    if (File::exist("/usr/sbin/")) // FIXME: does not exist on Travis-CI docker
+      {
+        ASSERT_TRUE(File::Directory == File::type("/usr/sbin/"));
+        ASSERT_TRUE(File::isReadable("/usr/sbin/"));
+        //FIXME ASSERT_TRUE(false == File::isWritable("/usr/sbin/"));
+      }
+    ASSERT_TRUE(File::DoesNotExist == File::type("/usr/sbin/foobar"));
+    ASSERT_FALSE(File::isReadable("/usr/sbin/foobar"));
+    ASSERT_FALSE(File::isWritable("/usr/sbin/foobar"));
 
-  CPPUNIT_ASSERT(File::Directory == File::type("/tmp"));
-  CPPUNIT_ASSERT(true == File::isReadable("/tmp"));
-  CPPUNIT_ASSERT(true == File::isWritable("/tmp"));
+    ASSERT_TRUE(File::Document == File::type("/bin/ls"));
+    ASSERT_TRUE(File::isReadable("/bin/ls"));
+    //FIXME ASSERT_TRUE(false == File::isWritable("/bin/ls"));
 
-  if (File::exist("/usr/sbin/")) // FIXME: does not exist on Travis-CI docker
-    {
-      CPPUNIT_ASSERT(File::Directory == File::type("/usr/sbin/"));
-      CPPUNIT_ASSERT(true == File::isReadable("/usr/sbin/"));
-      //FIXME CPPUNIT_ASSERT(false == File::isWritable("/usr/sbin/"));
-    }
-  CPPUNIT_ASSERT(File::DoesNotExist == File::type("/usr/sbin/foobar"));
-  CPPUNIT_ASSERT(false == File::isReadable("/usr/sbin/foobar"));
-  CPPUNIT_ASSERT(false == File::isWritable("/usr/sbin/foobar"));
+    ASSERT_TRUE(File::mkdir("/tmp/qq"));
+    ASSERT_TRUE(File::mkdir("/tmp/foo/bar/"));
+    ASSERT_TRUE(File::mkdir("/tmp/foo/bar/"));
 
-  CPPUNIT_ASSERT(File::Document == File::type("/bin/ls"));
-  CPPUNIT_ASSERT(true == File::isReadable("/bin/ls"));
-  //FIXME CPPUNIT_ASSERT(false == File::isWritable("/bin/ls"));
+    ASSERT_FALSE(File::mkdir("/dev/null"));
 
-  CPPUNIT_ASSERT(true == File::mkdir("/tmp/qq"));
-  CPPUNIT_ASSERT(true == File::mkdir("/tmp/qq/"));
+    ASSERT_TRUE(File::dirName("/tmp/foo/bar") == "/tmp/foo/");
+    ASSERT_TRUE(File::dirName("/tmp/foo/") == "/tmp/foo/");
+    ASSERT_TRUE(File::dirName("/tmp/foo") == "/tmp/");
+    ASSERT_TRUE(File::dirName("/tmp/") == "/tmp/");
+    ASSERT_TRUE(File::dirName("/tmp") == "/");
 
-  CPPUNIT_ASSERT(File::dirName("/tmp/foo/bar") == "/tmp/foo/");
-  CPPUNIT_ASSERT(File::dirName("/tmp/foo/") == "/tmp/foo/");
-  CPPUNIT_ASSERT(File::dirName("/tmp/foo") == "/tmp/");
-  CPPUNIT_ASSERT(File::dirName("/tmp/") == "/tmp/");
-  CPPUNIT_ASSERT(File::dirName("/tmp") == "/");
-}
-
-//--------------------------------------------------------------------------
-void FileTests::testpath()
-{
-  Path path1;
-  CPPUNIT_ASSERT_EQUAL(0, path1.toString().compare(""));
-  Path path2("aa:bb:cc::ee::");
-  std::cout << "Path: '" << path2.toString() << "'" << std::endl;
-  path2.init("/usr/bin/");
-  std::cout << "Path: '" << path2.toString() << "'" << std::endl;
-  CPPUNIT_ASSERT_EQUAL(0, path2.toString().compare("/usr/bin:"));
-  path2.add("/usr/share:/bin/");
-  std::cout << "Path: '" << path2.toString() << "'" << std::endl;
-  CPPUNIT_ASSERT_EQUAL(0, path2.toString().compare("/usr/bin:/usr/share:/bin:"));
-  std::pair<std::string, bool> res = path2.find("ls");
-  CPPUNIT_ASSERT_EQUAL(true, res.second);
-  CPPUNIT_ASSERT_EQUAL(0, res.first.compare("/bin/ls"));
+    ASSERT_TRUE(File::dirName("tmp/foo") == "tmp/");
+    ASSERT_TRUE(File::dirName("tmp/foo/") == "tmp/foo/");
+    ASSERT_TRUE(File::dirName("tmp") == "");
+  }
 }

@@ -1,6 +1,6 @@
 //=====================================================================
 // SimTaDyn: A GIS in a spreadsheet.
-// Copyright 2017 Quentin Quadrat <lecrapouille@gmail.com>
+// Copyright 2018 Quentin Quadrat <lecrapouille@gmail.com>
 //
 // This file is part of SimTaDyn.
 //
@@ -18,34 +18,34 @@
 // along with GNU Emacs.  If not, see <http://www.gnu.org/licenses/>.
 //=====================================================================
 
-#ifndef FILETESTS_HPP_
-#  define FILETESTS_HPP_
+#define protected public
+#define private public
+#include "StrongType.tpp"
+#undef protected
+#undef private
 
-#  include <cppunit/TestFixture.h>
-#  include <cppunit/TestResult.h>
-#  include <cppunit/extensions/HelperMacros.h>
+#include <crpcut.hpp>
 
-#  define protected public
-#  define private public
-#  include "File.hpp"
-#  include "Path.hpp"
-#  undef protected
-#  undef private
-
-class FileTests : public CppUnit::TestFixture
+TESTSUITE(StrongTypeClass)
 {
-  // CppUnit macros for setting up the test suite
-  CPPUNIT_TEST_SUITE(FileTests);
-  CPPUNIT_TEST(testfiles);
-  CPPUNIT_TEST(testpath);
-  CPPUNIT_TEST_SUITE_END();
+  TEST(StrongTypeClassEquality)
+  {
+    STRONG_TYPEDEF(int, Foo);
+    STRONG_TYPEDEF(int, Bar);
 
-public:
-  void setUp();
-  void tearDown();
+    Foo f1;
+    Foo f2(42);
+    Bar f3;
 
-  void testfiles();
-  void testpath();
-};
-
-#endif /* FILETESTS_HPP_ */
+    f1 = 42;
+    f3 = 20;
+    ASSERT_EQ(true, f1 == f2);
+    ASSERT_EQ(true, f3 != Bar(42));
+    ASSERT_EQ(true, f3 < Bar(42));
+    ASSERT_EQ(true, Bar(42) <= Bar(42));
+    ASSERT_EQ(true, Bar(42) >= Bar(42));
+    ASSERT_EQ(true, Bar(42) == Bar(42));
+    ASSERT_EQ(true, Bar(42) < Bar(43));
+    ASSERT_EQ(true, Bar(43) > Bar(42));
+  }
+}
