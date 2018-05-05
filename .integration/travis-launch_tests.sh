@@ -9,5 +9,5 @@ fi
 JCORES="-j"$(( CORES * 2 ))
 echo "I detected $CORES CPUs I'll use $JCORES"
 
-./ci-launch_tests.sh $JCORES
+./.integration/ci-launch_tests.sh $JCORES
 exit $?

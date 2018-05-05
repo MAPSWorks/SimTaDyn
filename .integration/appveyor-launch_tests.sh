@@ -7,5 +7,5 @@ cd "$bf" || (echo "Cannot go to directory $bf"; return 1)
 # FIXME: get the number of cores
 JCORES="-j4"
 
-./common-launch_tests.sh $JCORES
+./.integration/common-launch_tests.sh $JCORES
 exit $?
